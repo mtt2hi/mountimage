@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: SPDX-License-Identifier: MPL-2.0
+#
+# Copyright (c) 2022 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
 
 #set -x
 
@@ -12,16 +15,21 @@ IMAGE_DEVICE=$1
 
 FORMAT=${2:-last}
 
+MOUNTPOINT_DEFAULT=${MOUNTPOINT}
+
 MOUNTPOINT=$3
 
+IMAGEDESCR_DEFAULT=${IMAGEDESCR[@]}
+
 function help () {
-  echo "$(basename $0) <imagename| device> [<profile>] [<mount dir>]"
+  echo "$(basename $0) <imagename| device> [<profile>|-] [<mount dir>]"
   echo "  mount an image file or device to with <profile> to <mount dir>"
   echo "$(basename $0) -u [<mount dir>]"
   echo "  unmount all mounted partitions of <mount dir>"
   echo "imagename: an image name like xyz.img with partitions"
   echo "device: a device of an image like /dev/sde"
   echo "mount dir: A mount directory for /, if not given, /mnt/rootfs is assumed" 
+  echo "if a \"-\" is provides as profile, nothing is read and defaults are used"
   echo "profile: a source script at ~/mountimage.profiles/<profile> with the content:"
   echo "  IMAGEDESCR=('LABEL=<label>|<partnr>:<relative mount path>' \ "
   echo "              'LABEL=<label>|<partnr>:<relative mount path>' \ "
@@ -46,8 +54,11 @@ function help () {
              '1:/boot' \
              )
 EOF
-  echo "  HINT: All non existing partitions are ignored, so the description is used as super set"
-  echo "  HINT 2:Last valid profile used is stored at ~/mountimage.profiles/last, if not valid, ~/mountimage.profiles/last is deleted"
+  echo "Also possible: IMAGEDESCR=\"LABEL=<label>|<partnr>:<relative mount path> ...\" $(basename $0) ... , e.g."
+  echo "IMAGEDESCR=\"LABEL=system:/ LABEL=home:/home\" $(basename $0) ..."
+  echo ""
+  echo "HINT: All non existing partitions are ignored, so the description is used as super set"
+  echo "HINT 2:Last valid profile used is stored at ~/mountimage.profiles/last, if not valid, ~/mountimage.profiles/last is deleted"
 }
 
 
@@ -87,30 +98,49 @@ IMAGEDESCR=('LABEL=system:/' \
            'LABEL=rescue:/rescue' \
            'LABEL=data:/data' \
            )
+
 if test -n "$FORMAT" ; then
   profile=~/mountimage.profiles/"$FORMAT"
   if test "$FORMAT" != "last"; then
     rm -f ~/mountimage.profiles/last
   fi
-  echo "Try to read profile from $profile"
-  if [ -f "$profile" ]; then
-    source "$profile"
-    if test "$FORMAT" != "last"; then
-       cp ~/mountimage.profiles/"$FORMAT" ~/mountimage.profiles/last
+  if test "$FORMAT" != "-"; then
+    echo "Try to read profile from $profile"
+    if [ -f "$profile" ]; then
+      source "$profile"
+    elif test "$FORMAT" != "last"; then 
+      echo "Can't find profile at $profile"
+      help
+      exit 1
     fi
-  elif test "$FORMAT" != "last"; then 
-    echo "Can't find profile at $profile"
-    help
-    exit 1
-  fi
-  if [ -z "$IMAGEDESCR" ]; then
-    echo "No valid array IMAGEDESCR given"
-    help
-    exit 0 
   fi
 else  
   rm -f ~/mountimage.profiles/last
 fi
+
+MOUNTPOINT=${MOUNTPOINT_DEFAULT:-${MOUNTPOINT}}
+
+if [ -n "${IMAGEDESCR_DEFAULT[@]}" ]; then
+  IMAGEDESCR=(${IMAGEDESCR_DEFAULT[@]})
+fi 
+if [ -z "$IMAGEDESCR" ]; then
+  echo "No valid array IMAGEDESCR given"
+  help
+  exit 0 
+fi
+
+#write last configuration
+profile=~/mountimage.profiles/last
+rm -f $profile
+echo "MOUNTPOINT=$MOUNTPOINT" >> $profile
+echo "IMAGEDESCR=(${IMAGEDESCR[@]})" >> $profile
+
+
+#for str in ${IMAGEDESCR[@]}; do
+#  echo "$str"
+#done
+
+#exit
 
 
 if [ -z "$IMAGE_DEVICE" ]; then
@@ -165,6 +195,7 @@ fi
 set +x
 
 echo "IMAGE_DEVICE=$IMAGE_DEVICE"
+echo "IMAGEDESCR=${IMAGEDESCR[@]}"
 echo "FORMAT:$FORMAT"
 echo "MOUNTPOINT:$MOUNTPOINT"
 echo "DEVICE=$DEVICE"

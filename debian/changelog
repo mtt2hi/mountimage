@@ -1,3 +1,12 @@
+mountimage (1.01) apertis; urgency=medium
+
+  * Now the setting for IMAGEDESCR and MOUNTPOINT are save at last profile
+  * Now IMAGEDESCR and MOUNTPOINT can be set as variables outside with priority
+  * Now profile '-' disables all reading from profiles 
+  * SPDX identifier added
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Thu, 14 Jul 2022 11:41:45 +0000
+
 mountimage (1.00) apertis; urgency=medium
 
   * Initial release.
