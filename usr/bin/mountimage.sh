@@ -186,6 +186,9 @@ if test "$IMAGE_DEVICE" != "-u" ; then
         MDEVICE="${DEVICEP}${PARTNR}"
       fi
       if [ -n "${MDEVICE}" ]; then
+        if [ ! -d "${MOUNTPOINT}$LABELPATH" ]; then
+          exe sudo mkdir -p "${MOUNTPOINT}$LABELPATH"
+        fi
         exe sudo mount "${MDEVICE}" "${MOUNTPOINT}$LABELPATH"
       fi
     done  
