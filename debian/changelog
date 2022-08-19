@@ -1,3 +1,9 @@
+mountimage (1.03) apertis; urgency=medium
+
+  * Getting partlabel instead of label
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Fri, 19 Aug 2022 09:27:38 +0000
+
 mountimage (1.02) apertis; urgency=medium
 
   * Now non existing mount points are created with mkdir

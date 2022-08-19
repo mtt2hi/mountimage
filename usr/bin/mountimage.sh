@@ -71,7 +71,7 @@ local sdev_label
 
   for sdev in ${devp}*
   do 
-    sdev_label=$(sudo blkid -s LABEL -o value $sdev)
+    sdev_label=$(sudo blkid -s PARTLABEL -o value $sdev)
     if test "$sdev_label" = "$label"; then
       echo $sdev
       return
