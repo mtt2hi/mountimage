@@ -152,7 +152,7 @@ fi
 
 SYSTEM_DEV=$(findmnt "$MOUNTPOINT" -o SOURCE  -n)
 if test -n "${SYSTEM_DEV}"; then
-  for dev in $(findmnt -R "$MOUNTPOINT" -o SOURCE  -n | tac) ;do exe sudo umount ${dev} ;done
+  for dev in $(findmnt -R "$MOUNTPOINT" -o SOURCE  -n | tac) ;do exe sudo umount ${dev};sync ;done
   DEVICE=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/')  
   LOOP_DEV=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')  
   if test -n "${LOOP_DEV}" ; then
