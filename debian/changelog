@@ -1,3 +1,9 @@
+mountimage (1.07) apertis; urgency=medium
+
+  * if partlabel is not given, optionally label of partition is used for PARTLABEL
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Tue, 06 Sep 2022 12:42:37 +0000
+
 mountimage (1.06) apertis; urgency=medium
 
   * Now image files can be looped, but not mounted 

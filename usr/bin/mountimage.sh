@@ -213,6 +213,12 @@ if test "$IMAGE_DEVICE" != "-u" ; then
         IFS=\= read -r IDTYPE IDVALUE <<< "$PARTNR"
         if test "$IDTYPE" = "PARTLABEL"; then
           MDEVICE=$(getdevicefrompartlabel ${DEVICEP} ${IDVALUE})
+          if [ -z "$MDEVICE" ]; then
+            MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
+            if [ -n "$MDEVICE" ]; then
+              echo "Using LABEL instead of PARTLABEL for ${IDVALUE} at ${MDEVICE}"
+            fi
+          fi
         elif test "$IDTYPE" = "LABEL"; then
           MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
         else
