@@ -137,13 +137,18 @@ fi
 MOUNTPOINT=${MOUNTPOINT_DEFAULT:-${MOUNTPOINT}}
 
 if [ -n "${IMAGEDESCR_DEFAULT[@]}" ]; then
+  echo "IMAGEDESCR is set by environment, ignoring value from profile"
   IMAGEDESCR=(${IMAGEDESCR_DEFAULT[@]})
 fi 
-if [ -z "$IMAGEDESCR" ]; then
+if [ -z "$IMAGEDESCR" ] && test "$IMAGE_DEVICE" != "-u"; then
   echo "No valid array IMAGEDESCR given"
   help
   exit 0 
 fi
+if test "$IMAGEDESCR" = '-'; then
+  IMAGEDESCR=
+fi
+
 
 #write last configuration
 profile=~/mountimage.profiles/last
@@ -167,16 +172,23 @@ fi
 #unmount resources first
 
 SYSTEM_DEV=$(findmnt "$MOUNTPOINT" -o SOURCE  -n)
+if [ -z "$SYSTEMD_DEV" ] && [ -f "$MOUNTPOINT"/env ]; then
+  echo "Reading "$MOUNTPOINT"/env"
+  . "$MOUNTPOINT"/env
+  sudo rm "$MOUNTPOINT"/env
+fi
 if test -n "${SYSTEM_DEV}"; then
   for dev in $(findmnt -R "$MOUNTPOINT" -o SOURCE  -n | tac) ;do exe sudo umount ${dev};sync ;done
-  DEVICE=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/')  
+  DEVICE=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/') 
   LOOP_DEV=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')  
-  if test -n "${LOOP_DEV}" ; then
-    IMAGE=$(losetup -a|perl -ne 'print "$1\n" if /''\((.+?)\)/')
-    exe sudo losetup -d ${LOOP_DEV}
-  else
-    IMAGE=
-  fi
+else
+  LOOP_DEV=$DEVICE 
+fi  
+if test -n "${LOOP_DEV}" ; then
+  IMAGE=$(losetup -a|perl -ne 'print "$1\n" if /''\((.+?)\)/')
+  exe sudo losetup -d ${LOOP_DEV}
+else
+  IMAGE=
 fi
 if test "$IMAGE_DEVICE" != "-u" ; then
   if [ -b "$IMAGE_DEVICE" ]; then
@@ -191,25 +203,29 @@ if test "$IMAGE_DEVICE" != "-u" ; then
     IMAGE="$IMAGE_DEVICE"
     SYSTEM_DEV=
   fi
-  SYSTEM_DEV=$(getdevicefromlabel ${DEVICEP} "system")
-  if test -n "${DEVICEP}"; then
-    for str in ${IMAGEDESCR[@]}; do
-      IFS=: read -r PARTNR LABELPATH <<< "$str"
-      IFS=\= read -r IDTYPE IDVALUE <<< "$PARTNR"
-      if test "$IDTYPE" = "PARTLABEL"; then
-        MDEVICE=$(getdevicefrompartlabel ${DEVICEP} ${IDVALUE})
-      elif test "$IDTYPE" = "LABEL"; then
-        MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
-      else
-        MDEVICE="${DEVICEP}${PARTNR}"
-      fi
-      if [ -n "${MDEVICE}" ]; then
-        if [ ! -d "${MOUNTPOINT}$LABELPATH" ]; then
-          exe sudo mkdir -p "${MOUNTPOINT}$LABELPATH"
+  if [ -z "$IMAGEDESCR" ]; then
+    echo "DEVICE=$DEVICE" | sudo tee -a "$MOUNTPOINT"/env
+  else
+    SYSTEM_DEV=$(getdevicefromlabel ${DEVICEP} "system")
+    if test -n "${DEVICEP}"; then
+      for str in ${IMAGEDESCR[@]}; do
+        IFS=: read -r PARTNR LABELPATH <<< "$str"
+        IFS=\= read -r IDTYPE IDVALUE <<< "$PARTNR"
+        if test "$IDTYPE" = "PARTLABEL"; then
+          MDEVICE=$(getdevicefrompartlabel ${DEVICEP} ${IDVALUE})
+        elif test "$IDTYPE" = "LABEL"; then
+          MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
+        else
+          MDEVICE="${DEVICEP}${PARTNR}"
         fi
-        exe sudo mount "${MDEVICE}" "${MOUNTPOINT}$LABELPATH"
-      fi
-    done  
+        if [ -n "${MDEVICE}" ]; then
+          if [ ! -d "${MOUNTPOINT}$LABELPATH" ]; then
+            exe sudo mkdir -p "${MOUNTPOINT}$LABELPATH"
+          fi
+          exe sudo mount "${MDEVICE}" "${MOUNTPOINT}$LABELPATH"
+        fi
+      done  
+    fi
   fi
 fi 
 
