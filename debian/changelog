@@ -1,3 +1,9 @@
+mountimage (1.05) apertis; urgency=medium
+
+  * Now LABEL and PARTLABEL are supported seperately
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Tue, 06 Sep 2022 05:46:28 +0000
+
 mountimage (1.04) apertis; urgency=medium
 
   * Sync added

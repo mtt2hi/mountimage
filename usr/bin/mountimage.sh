@@ -31,22 +31,22 @@ function help () {
   echo "mount dir: A mount directory for /, if not given, /mnt/rootfs is assumed" 
   echo "if a \"-\" is provides as profile, nothing is read and defaults are used"
   echo "profile: a source script at ~/mountimage.profiles/<profile> with the content:"
-  echo "  IMAGEDESCR=('LABEL=<label>|<partnr>:<relative mount path>' \ "
-  echo "              'LABEL=<label>|<partnr>:<relative mount path>' \ "
+  echo "  IMAGEDESCR=('PARTLABEL=<label>|<partnr>:<relative mount path>' \ "
+  echo "              'PARTLABEL=<label>|<partnr>:<relative mount path>' \ "
   echo "             ..."
   echo "             )"
   echo "  [MOUNTPOINT=<mount dir>]"
   cat << "EOF"
 # Example 1:  
-    IMAGEDESCR=('LABEL=system:/' \
-             'LABEL=general_storage:/home' \
-             'LABEL=boot:/boot' \
-             'LABEL=EFI:/boot/efi' \
-             'LABEL=firmware:/boot/firmware' \
-             'LABEL=system2:/system2' \
-             'LABEL=nonred:/mnt/nonredundant' \
-             'LABEL=rescue:/rescue' \
-             'LABEL=data:/data' \
+    IMAGEDESCR=('PARTLABEL=system:/' \
+             'PARTLABEL=general_storage:/home' \
+             'PARTLABEL=boot:/boot' \
+             'PARTLABEL=EFI:/boot/efi' \
+             'PARTLABEL=firmware:/boot/firmware' \
+             'PARTLABEL=system2:/system2' \
+             'PARTLABEL=nonred:/mnt/nonredundant' \
+             'PARTLABEL=rescue:/rescue' \
+             'PARTLABEL=data:/data' \
              )
 # Example 2:  
     IMAGEDESCR=('2:/' \
@@ -54,8 +54,8 @@ function help () {
              '1:/boot' \
              )
 EOF
-  echo "Also possible: IMAGEDESCR=\"LABEL=<label>|<partnr>:<relative mount path> ...\" $(basename $0) ... , e.g."
-  echo "IMAGEDESCR=\"LABEL=system:/ LABEL=home:/home\" $(basename $0) ..."
+  echo "Also possible: IMAGEDESCR=\"PARTLABEL=<label>|<partnr>:<relative mount path> ...\" $(basename $0) ... , e.g."
+  echo "IMAGEDESCR=\"PARTLABEL=system:/ PARTLABEL=home:/home\" $(basename $0) ..."
   echo ""
   echo "HINT: All non existing partitions are ignored, so the description is used as super set"
   echo "HINT 2:Last valid profile used is stored at ~/mountimage.profiles/last, if not valid, ~/mountimage.profiles/last is deleted"
@@ -63,6 +63,23 @@ EOF
 
 
 function getdevicefromlabel() {
+
+local devp=$1
+local label=$2
+local sdev
+local sdev_label
+
+  for sdev in ${devp}*
+  do 
+    sdev_label=$(sudo blkid -s LABEL -o value $sdev)
+    if test "$sdev_label" = "$label"; then
+      echo $sdev
+      return
+    fi
+  done
+}
+
+function getdevicefrompartlabel() {
 
 local devp=$1
 local label=$2
@@ -80,7 +97,6 @@ local sdev_label
 }
 
 
-
 if [ -d "$FORMAT" ]; then
   MOUNTPOINT=$2
   FORMAT=$3
@@ -88,15 +104,15 @@ fi
 
 MOUNTPOINT=${MOUNTPOINT:-/mnt/rootfs}
 
-IMAGEDESCR=('LABEL=system:/' \
-           'LABEL=general_storage:/home' \
-           'LABEL=boot:/boot' \
-           'LABEL=EFI:/boot/efi' \
-           'LABEL=firmware:/boot/firmware' \
-           'LABEL=system2:/system2' \
-           'LABEL=nonred:/mnt/nonredundant' \
-           'LABEL=rescue:/rescue' \
-           'LABEL=data:/data' \
+IMAGEDESCR=('PARTLABEL=system:/' \
+           'PARTLABEL=general_storage:/home' \
+           'PARTLABEL=boot:/boot' \
+           'PARTLABEL=EFI:/boot/efi' \
+           'PARTLABEL=firmware:/boot/firmware' \
+           'PARTLABEL=system2:/system2' \
+           'PARTLABEL=nonred:/mnt/nonredundant' \
+           'PARTLABEL=rescue:/rescue' \
+           'PARTLABEL=data:/data' \
            )
 
 if test -n "$FORMAT" ; then
@@ -180,7 +196,9 @@ if test "$IMAGE_DEVICE" != "-u" ; then
     for str in ${IMAGEDESCR[@]}; do
       IFS=: read -r PARTNR LABELPATH <<< "$str"
       IFS=\= read -r IDTYPE IDVALUE <<< "$PARTNR"
-      if test "$IDTYPE" = "LABEL"; then
+      if test "$IDTYPE" = "PARTLABEL"; then
+        MDEVICE=$(getdevicefrompartlabel ${DEVICEP} ${IDVALUE})
+      elif test "$IDTYPE" = "LABEL"; then
         MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
       else
         MDEVICE="${DEVICEP}${PARTNR}"
