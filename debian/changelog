@@ -1,3 +1,9 @@
+mountimage (1.08) apertis; urgency=medium
+
+  * Partprobe has to be added with new Virtualbox version
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Wed, 28 Sep 2022 06:55:03 +0000
+
 mountimage (1.07) apertis; urgency=medium
 
   * if partlabel is not given, optionally label of partition is used for PARTLABEL

@@ -196,6 +196,8 @@ if test "$IMAGE_DEVICE" != "-u" ; then
     DEVICEP=$DEVICE
     IMAGE=
     SYSTEM_DEV=
+    #  partprobe has to be called 
+    exe sudo partprobe ${DEVICE}
   else
     DEVICE=$(sudo losetup -f)
     DEVICEP="${DEVICE}p"
