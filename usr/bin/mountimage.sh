@@ -13,7 +13,7 @@ exe() { echo "\$ $@" ; "$@" ; }
 
 IMAGE_DEVICE=$1
 
-FORMAT=${2:-last}
+FORMAT=${2:-\-}
 
 MOUNTPOINT_DEFAULT=${MOUNTPOINT}
 
@@ -117,9 +117,6 @@ IMAGEDESCR=('PARTLABEL=system:/' \
 
 if test -n "$FORMAT" ; then
   profile=~/mountimage.profiles/"$FORMAT"
-  if test "$FORMAT" != "last"; then
-    rm -f ~/mountimage.profiles/last
-  fi
   if test "$FORMAT" != "-"; then
     echo "Try to read profile from $profile"
     if [ -f "$profile" ]; then
@@ -130,8 +127,6 @@ if test -n "$FORMAT" ; then
       exit 1
     fi
   fi
-else  
-  rm -f ~/mountimage.profiles/last
 fi
 
 MOUNTPOINT=${MOUNTPOINT_DEFAULT:-${MOUNTPOINT}}
@@ -148,13 +143,6 @@ fi
 if test "$IMAGEDESCR" = '-'; then
   IMAGEDESCR=
 fi
-
-
-#write last configuration
-profile=~/mountimage.profiles/last
-rm -f $profile
-echo "MOUNTPOINT=$MOUNTPOINT" >> $profile
-echo "IMAGEDESCR=(${IMAGEDESCR[@]})" >> $profile
 
 
 #for str in ${IMAGEDESCR[@]}; do
@@ -191,6 +179,11 @@ else
   IMAGE=
 fi
 if test "$IMAGE_DEVICE" != "-u" ; then
+  #write last configuration
+  profile=~/mountimage.profiles/last
+  rm -f $profile
+  echo "MOUNTPOINT=$MOUNTPOINT" >> $profile
+  echo "IMAGEDESCR=(${IMAGEDESCR[@]})" >> $profile
   if [ -b "$IMAGE_DEVICE" ]; then
     DEVICE=$IMAGE_DEVICE
     DEVICEP=$DEVICE
@@ -239,9 +232,11 @@ fi
 
 set +x
 
+if test "$IMAGE_DEVICE" != "-u" ; then
+  echo "IMAGEDESCR=${IMAGEDESCR[@]}"
+  echo "FORMAT:$FORMAT"
+fi
 echo "IMAGE_DEVICE=$IMAGE_DEVICE"
-echo "IMAGEDESCR=${IMAGEDESCR[@]}"
-echo "FORMAT:$FORMAT"
 echo "MOUNTPOINT:$MOUNTPOINT"
 echo "DEVICE=$DEVICE"
 echo "SYSTEM_DEV=$SYSTEM_DEV"
