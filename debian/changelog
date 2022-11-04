@@ -1,3 +1,11 @@
+mountimage (1.10) apertis; urgency=medium
+
+  * Help changed
+  * Man page added
+  * Directory for profiles created, if not existing
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Fri, 04 Nov 2022 10:33:17 +0000
+
 mountimage (1.09) apertis; urgency=medium
 
   * Now setting no profile leads to internal default. Also saving to last profile is onle done at mount, now more at umount 

@@ -3,3 +3,5 @@
 %:
 	dh $@ 
 
+override_dh_auto_build:
+	pandoc mountimage.1.md -s -t man -o debian/mountimage.1

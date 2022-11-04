@@ -10,6 +10,9 @@ exe() { echo "\$ $@" ; "$@" ; }
 # mountimage <device|imagefile> [<mountpoint>] [<format>] 
 # mountimage -u [<mountpoint>]
 
+PROFILEBASE_D='~/mountimage.profiles'
+eval PROFILEBASE=${PROFILEBASE_D}
+
 
 IMAGE_DEVICE=$1
 
@@ -18,11 +21,12 @@ FORMAT=${2:-\-}
 MOUNTPOINT_DEFAULT=${MOUNTPOINT}
 
 MOUNTPOINT=$3
+MOUNTPOINT_PAR=$MOUNTPOINT
 
 IMAGEDESCR_DEFAULT=${IMAGEDESCR[@]}
 
 function help () {
-  echo "$(basename $0) <imagename| device> [<profile>|-] [<mount dir>]"
+  echo "$(basename $0) <imagename| device> [<profile>|last] [<mount dir>]"
   echo "  mount an image file or device to with <profile> to <mount dir>"
   echo "$(basename $0) -u [<mount dir>]"
   echo "  unmount all mounted partitions of <mount dir>"
@@ -30,14 +34,14 @@ function help () {
   echo "device: a device of an image like /dev/sde"
   echo "mount dir: A mount directory for /, if not given, /mnt/rootfs is assumed" 
   echo "if a \"-\" is provides as profile, nothing is read and defaults are used"
-  echo "profile: a source script at ~/mountimage.profiles/<profile> with the content:"
+  echo "profile: a source script at ${PROFILEBASE_D}/<profile> with the content:"
   echo "  IMAGEDESCR=('PARTLABEL=<label>|<partnr>:<relative mount path>' \ "
   echo "              'PARTLABEL=<label>|<partnr>:<relative mount path>' \ "
   echo "             ..."
   echo "             )"
   echo "  [MOUNTPOINT=<mount dir>]"
   cat << "EOF"
-# Example 1:  
+# Example 1 (Default):  
     IMAGEDESCR=('PARTLABEL=system:/' \
              'PARTLABEL=general_storage:/home' \
              'PARTLABEL=boot:/boot' \
@@ -58,7 +62,7 @@ EOF
   echo "IMAGEDESCR=\"PARTLABEL=system:/ PARTLABEL=home:/home\" $(basename $0) ..."
   echo ""
   echo "HINT: All non existing partitions are ignored, so the description is used as super set"
-  echo "HINT 2:Last valid profile used is stored at ~/mountimage.profiles/last, if not valid, ~/mountimage.profiles/last is deleted"
+  echo "HINT 2:Last valid profile used is stored at ${PROFILEBASE_D}/last, if not valid, ${PROFILEBASE_D}/last is deleted"
 }
 
 
@@ -96,11 +100,11 @@ local sdev_label
   done
 }
 
-
 if [ -d "$FORMAT" ]; then
   MOUNTPOINT=$2
   FORMAT=$3
 fi
+
 
 MOUNTPOINT=${MOUNTPOINT:-/mnt/rootfs}
 
@@ -116,7 +120,7 @@ IMAGEDESCR=('PARTLABEL=system:/' \
            )
 
 if test -n "$FORMAT" ; then
-  profile=~/mountimage.profiles/"$FORMAT"
+  profile="${PROFILEBASE}"/"$FORMAT"
   if test "$FORMAT" != "-"; then
     echo "Try to read profile from $profile"
     if [ -f "$profile" ]; then
@@ -127,6 +131,10 @@ if test -n "$FORMAT" ; then
       exit 1
     fi
   fi
+fi
+
+if test -n "$MOUNTPOINT_PAR"; then
+  MOUNTPOINT_DEFAULT=${MOUNTPOINT_PAR}
 fi
 
 MOUNTPOINT=${MOUNTPOINT_DEFAULT:-${MOUNTPOINT}}
@@ -180,7 +188,8 @@ else
 fi
 if test "$IMAGE_DEVICE" != "-u" ; then
   #write last configuration
-  profile=~/mountimage.profiles/last
+  [ -d "${PROFILEBASE}" ] || mkdir -p "${PROFILEBASE}"
+  profile="${PROFILEBASE}"/last
   rm -f $profile
   echo "MOUNTPOINT=$MOUNTPOINT" >> $profile
   echo "IMAGEDESCR=(${IMAGEDESCR[@]})" >> $profile
