@@ -1,3 +1,9 @@
+mountimage (1.11) apertis; urgency=medium
+
+  * Manpage added to package
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Mon, 07 Nov 2022 07:13:52 +0000
+
 mountimage (1.10) apertis; urgency=medium
 
   * Help changed
