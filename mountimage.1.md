@@ -2,8 +2,8 @@
 title: MOUNTIMAGE.SH
 section: 1
 header: User Manual
-footer: mountimage.sh  1.09
-date: November 4,2022
+footer: mountimage.sh  1.11
+date: November 11,2022
 ---
 # NAME
 Mountimage.sh - Set up of Linux system images for offline changes. 
@@ -60,16 +60,25 @@ The last settings are saved to be used at next time.
 
 - **LABEL=<label\>:<mountdir\>**
 : **label** defines file system label/name, e.g. **LABEL=system:/** or **LABEL=boot:/boot**
- 
+
+- **UUID=<uuid\>:<mountdir\>**
+: **uuid** defines file system uuid, e.g. **UUID=26bba953-3569-4e4a-9371-324256fdbb2d:/** 
+
+- **PARTUUID=<partuuid\>:<mountdir\>**
+: **partuuid** defines uuid of partition, e.g. **PARTUUID=4375eadd-a68f-41ea-8118-a2419206d164:/** 
+
 - **PARTNR=<partnr\>:<mountdir\>**
 : **partnr** defines partition number, e.g. **2:/** or **1:/boot**
+
+- **FSTAB**
+: **FSTAB** reads entries from **/etc/fstab** of mounted **/** volume, so an additional description for **/** must preceed. E.g. **IMAGEDESCR=(PARTLABEL=system:/ FSTAB)** 
 
 # ENVIRONMENT
 
 **IMAGEDSCR**
 : Defines a list of assignments for partitions. The format is **IMAGEDESCR=(passignment(1) passignment(2) ...)**, e.g.
 
-- **IMAGEDESCR=(PARTLABEL=system:/ PARTLABEL=home:/home\)** at profiles
+- **IMAGEDESCR=(PARTLABEL=system:/ PARTLABEL=home:/home)** at profiles
 - **IMAGEDESCR="PARTLABEL=system:/ PARTLABEL=home:/home"** at environment variable 
 
 **MOUNTPOINT**

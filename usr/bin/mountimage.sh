@@ -33,14 +33,27 @@ function help () {
   echo "imagename: an image name like xyz.img with partitions"
   echo "device: a device of an image like /dev/sde"
   echo "mount dir: A mount directory for /, if not given, /mnt/rootfs is assumed" 
-  echo "if a \"-\" is provides as profile, nothing is read and defaults are used"
   echo "profile: a source script at ${PROFILEBASE_D}/<profile> with the content:"
-  echo "  IMAGEDESCR=('PARTLABEL=<label>|<partnr>:<relative mount path>' \ "
-  echo "              'PARTLABEL=<label>|<partnr>:<relative mount path>' \ "
+  echo "  IMAGEDESCR=('<mountdescr 1>=<id 1>:<mount point 1>' \ "
+  echo "              '<mountdescr 2>=<id 2>:<mount point 2>' \ "
   echo "             ..."
+  echo "              '<partid x>:<mount point x>' \ "
+  echo "              'FSTAB' \ "
   echo "             )"
   echo "  [MOUNTPOINT=<mount dir>]"
   cat << "EOF"
+Possible entries for
+<mountdescr> 	<id> 		
+PARTLABEL      	<label of partion> (only GPT, fallback to LABEL)
+LABEL			<label of file system>	
+UUID			<uuid of file system>
+PARTUUID		<uuid of partion> (only GPT)
+
+Special entries for descriptions
+
+<partid x> 	: Simple the partition number
+FSTAB 		: Read further entries from /etc/fstab of mounted 
+	
 # Example 1 (Default):  
     IMAGEDESCR=('PARTLABEL=system:/' \
              'PARTLABEL=general_storage:/home' \
@@ -54,9 +67,14 @@ function help () {
              )
 # Example 2:  
     IMAGEDESCR=('2:/' \
-             '3:/home' \
-             '1:/boot' \
+             'LABEL=general_storage:/home' \
+             'LABEL=boot:/boot' \
              )
+# Example 3:  
+    IMAGEDESCR=('PARTLABEL=system:/' \
+             FSTAB \
+             )
+             
 EOF
   echo "Also possible: IMAGEDESCR=\"PARTLABEL=<label>|<partnr>:<relative mount path> ...\" $(basename $0) ... , e.g."
   echo "IMAGEDESCR=\"PARTLABEL=system:/ PARTLABEL=home:/home\" $(basename $0) ..."
@@ -100,10 +118,107 @@ local sdev_label
   done
 }
 
-if [ -d "$FORMAT" ]; then
-  MOUNTPOINT=$2
-  FORMAT=$3
-fi
+function getdevicefromuuid() {
+
+local devp=$1
+local label=$2
+local sdev
+local sdev_label
+
+  for sdev in ${devp}*
+  do 
+    sdev_label=$(sudo blkid -s UUID -o value $sdev)
+    if test "$sdev_label" = "$label"; then
+      echo $sdev
+      return
+    fi
+  done
+}
+
+function getdevicefrompartuuid() {
+
+local devp=$1
+local label=$2
+local sdev
+local sdev_label
+
+  for sdev in ${devp}*
+  do 
+    sdev_label=$(sudo blkid -s PARTUUID -o value $sdev)
+    if test "$sdev_label" = "$label"; then
+      echo $sdev
+      return
+    fi
+  done
+}
+
+function getdescr_from_fstab()
+{
+local fstab=$1
+local disroot=$2
+
+  while read -r MOUNTDESCR MOUNTPOINT FSTYPE OPTIONS S1 S2
+  do
+  #  PARTNR=$(echo $LINE|perl -ne 'print "$1\n" if /#\s+generated\s+by\s+\w+.sh\s+([^\s]+)\s+([^\s]+)/') 
+    if ! echo $MOUNTDESCR | grep -q '^[[:blank:]]*#' && test -n "$OPTIONS"; then
+      if test "$MOUNTPOINT" != "/"; then
+        if  echo $OPTIONS | grep -q '\bbind\b'; then
+          echo -n "BIND=$MOUNTDESCR:$MOUNTPOINT "
+        else
+          echo -n "$MOUNTDESCR:$MOUNTPOINT "
+        fi
+      fi  
+    fi  
+  done < "$fstab"
+  echo
+}
+
+function mountdescrentry()
+{
+local entry=$1
+local prefix=$2
+local PARTNR LABELPATH IDTYPE IDVALUE MDEVICE 
+
+  IFS=: read -r PARTNR LABELPATH <<< "$entry"
+  IFS=\= read -r IDTYPE IDVALUE <<< "$PARTNR"
+  if test "$IDTYPE" = "PARTLABEL"; then
+    MDEVICE=$(getdevicefrompartlabel ${DEVICEP} ${IDVALUE})
+    if [ -z "$MDEVICE" ]; then
+      MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
+      if [ -n "$MDEVICE" ]; then
+        echo "Using LABEL instead of PARTLABEL for ${IDVALUE} at ${MDEVICE}"
+      fi
+    fi
+  elif test "$IDTYPE" = "LABEL"; then
+    MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
+  elif test "$IDTYPE" = "UUID"; then
+    MDEVICE=$(getdevicefromuuid ${DEVICEP} ${IDVALUE})
+  elif test "$IDTYPE" = "PARTUUID"; then
+    MDEVICE=$(getdevicefrompartuuid ${DEVICEP} ${IDVALUE})
+  elif test "$IDTYPE" = "BIND"; then
+    MBIND=${IDVALUE}
+    MDEVICE=
+  else
+    MDEVICE="${DEVICEP}${PARTNR}"
+  fi
+  
+  if [ -n "${MDEVICE}" ] || [ -n "${MBIND}" ]; then
+    if [ ! -d "${MOUNTPOINT}$LABELPATH" ]; then
+      exe sudo mkdir -p "${MOUNTPOINT}$LABELPATH"
+    fi
+    # if not already mounted
+    if ! findmnt "${MOUNTPOINT}$LABELPATH" -o TARGET  -n > /dev/null; then
+      echo -n "$prefix"
+      if [ -n "${MDEVICE}" ] ; then
+        exe sudo mount "${MDEVICE}" "${MOUNTPOINT}$LABELPATH"
+      else
+        exe sudo mount -o bind "${MOUNTPOINT}$MBIND" "${MOUNTPOINT}$LABELPATH"
+      fi
+    fi
+  fi
+}
+
+
 
 
 MOUNTPOINT=${MOUNTPOINT:-/mnt/rootfs}
@@ -174,7 +289,11 @@ if [ -z "$SYSTEMD_DEV" ] && [ -f "$MOUNTPOINT"/env ]; then
   sudo rm "$MOUNTPOINT"/env
 fi
 if test -n "${SYSTEM_DEV}"; then
-  for dev in $(findmnt -R "$MOUNTPOINT" -o SOURCE  -n | tac) ;do exe sudo umount ${dev};sync ;done
+  for mountpoint in $(findmnt -R "${MOUNTPOINT}" -o TARGET  -n | tac | perl -ne 'print "$1\n" if /(\/.*)/') ;
+  do 
+    exe sudo umount "${mountpoint}"
+    sync
+  done
   DEVICE=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/') 
   LOOP_DEV=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')  
 else
@@ -213,26 +332,13 @@ if test "$IMAGE_DEVICE" != "-u" ; then
     SYSTEM_DEV=$(getdevicefromlabel ${DEVICEP} "system")
     if test -n "${DEVICEP}"; then
       for str in ${IMAGEDESCR[@]}; do
-        IFS=: read -r PARTNR LABELPATH <<< "$str"
-        IFS=\= read -r IDTYPE IDVALUE <<< "$PARTNR"
-        if test "$IDTYPE" = "PARTLABEL"; then
-          MDEVICE=$(getdevicefrompartlabel ${DEVICEP} ${IDVALUE})
-          if [ -z "$MDEVICE" ]; then
-            MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
-            if [ -n "$MDEVICE" ]; then
-              echo "Using LABEL instead of PARTLABEL for ${IDVALUE} at ${MDEVICE}"
-            fi
-          fi
-        elif test "$IDTYPE" = "LABEL"; then
-          MDEVICE=$(getdevicefromlabel ${DEVICEP} ${IDVALUE})
+        if test "$str" != "FSTAB"; then
+          mountdescrentry "$str"
         else
-          MDEVICE="${DEVICEP}${PARTNR}"
-        fi
-        if [ -n "${MDEVICE}" ]; then
-          if [ ! -d "${MOUNTPOINT}$LABELPATH" ]; then
-            exe sudo mkdir -p "${MOUNTPOINT}$LABELPATH"
-          fi
-          exe sudo mount "${MDEVICE}" "${MOUNTPOINT}$LABELPATH"
+          IMAGEDESCR2=$(getdescr_from_fstab "$MOUNTPOINT"/etc/fstab)
+          for str2 in ${IMAGEDESCR2[@]}; do
+            mountdescrentry "$str2" "FSTAB:"
+          done  
         fi
       done  
     fi

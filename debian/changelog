@@ -1,3 +1,9 @@
+mountimage (1.12) apertis; urgency=medium
+
+  * Additional options for tool like reading from /etc/fstab
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Fri, 11 Nov 2022 08:41:23 +0000
+
 mountimage (1.11) apertis; urgency=medium
 
   * Manpage added to package
