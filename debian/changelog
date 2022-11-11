@@ -1,3 +1,9 @@
+mountimage (1.13) apertis; urgency=medium
+
+  * Problem with -u option solved: Parameter profile not needed
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Fri, 11 Nov 2022 11:59:54 +0000
+
 mountimage (1.12) apertis; urgency=medium
 
   * Additional options for tool like reading from /etc/fstab
