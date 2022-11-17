@@ -4,4 +4,10 @@
 	dh $@ 
 
 override_dh_auto_build:
-	pandoc mountimage.1.md -s -t man -o debian/mountimage.1
+	cp mountimage.1.md debian/
+	./change_version.sh	debian/mountimage.1.md
+	pandoc debian/mountimage.1.md -s -t man -o debian/mountimage.1
+	
+override_dh_install:
+	dh_install
+	./change_version.sh	debian/mountimage/usr/bin/mountimage.sh

@@ -5,6 +5,9 @@
 
 #set -x
 
+VERSION=1.0
+VERSIONDATE=2022
+
 exe() { echo "\$ $@" ; "$@" ; }
 
 # mountimage <device|imagefile> [<mountpoint>] [<format>] 
@@ -30,6 +33,7 @@ MOUNTPOINT_PAR=$MOUNTPOINT
 IMAGEDESCR_DEFAULT=${IMAGEDESCR[@]}
 
 function help () {
+  echo "$(basename $0) $VERSION ($VERSIONDATE)"
   echo "$(basename $0) <imagename| device> [<profile>|last] [<mount dir>]"
   echo "  mount an image file or device to with <profile> to <mount dir>"
   echo "$(basename $0) -u [<mount dir>]"

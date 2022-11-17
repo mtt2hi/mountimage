@@ -1,3 +1,9 @@
+mountimage (1.15) apertis; urgency=medium
+
+  * Now date and version is updated bypackage build
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Thu, 17 Nov 2022 15:04:28 +0000
+
 mountimage (1.14) apertis; urgency=medium
 
   * Devices with no valid / are now not mounted with sub volumes
