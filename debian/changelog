@@ -1,3 +1,9 @@
+mountimage (1.14) apertis; urgency=medium
+
+  * Devices with no valid / are now not mounted with sub volumes
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Thu, 17 Nov 2022 09:37:14 +0000
+
 mountimage (1.13) apertis; urgency=medium
 
   * Problem with -u option solved: Parameter profile not needed

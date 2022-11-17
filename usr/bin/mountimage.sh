@@ -205,7 +205,14 @@ local PARTNR LABELPATH IDTYPE IDVALUE MDEVICE
   else
     MDEVICE="${DEVICEP}${PARTNR}"
   fi
-  
+  if test "$LABELPATH" != "/"; then
+    ROOTMNT=$(findmnt "${MOUNTPOINT}" -o TARGET  -n)
+    if [ -z "${ROOTMNT}" ];then
+      echo "/ is not mounted for $DEVICEP, can't handle sub mounts"
+      MDEVICE=''
+      MBIND=''
+    fi
+  fi
   if [ -n "${MDEVICE}" ] || [ -n "${MBIND}" ]; then
     if [ ! -d "${MOUNTPOINT}$LABELPATH" ]; then
       exe sudo mkdir -p "${MOUNTPOINT}$LABELPATH"
@@ -301,7 +308,7 @@ if test -n "${SYSTEM_DEV}"; then
   DEVICE=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/') 
   LOOP_DEV=$(echo ${SYSTEM_DEV} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')  
 else
-  LOOP_DEV=$DEVICE 
+  LOOP_DEV=$(echo ${DEVICE} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')
 fi  
 if test -n "${LOOP_DEV}" ; then
   IMAGE=$(losetup -a|perl -ne 'print "$1\n" if /''\((.+?)\)/')
@@ -330,9 +337,7 @@ if test "$IMAGE_DEVICE" != "-u" ; then
     IMAGE="$IMAGE_DEVICE"
     SYSTEM_DEV=
   fi
-  if [ -z "$IMAGEDESCR" ]; then
-    echo "DEVICE=$DEVICE" | sudo tee -a "$MOUNTPOINT"/env
-  else
+  if [ -n "$IMAGEDESCR" ]; then
     SYSTEM_DEV=$(getdevicefromlabel ${DEVICEP} "system")
     if test -n "${DEVICEP}"; then
       for str in ${IMAGEDESCR[@]}; do
@@ -345,6 +350,9 @@ if test "$IMAGE_DEVICE" != "-u" ; then
           done  
         fi
       done  
+    fi
+    if [ ! -f "$MOUNTPOINT"/env ]; then
+      echo "DEVICE=$DEVICE" | sudo tee -a "$MOUNTPOINT"/env
     fi
   fi
 fi 
