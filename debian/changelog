@@ -1,3 +1,9 @@
+mountimage (2.00) apertis; urgency=medium
+
+  * New version with changed UI and style
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Mon, 21 Feb 2023 13:15:45 +0000
+
 mountimage (1.15) apertis; urgency=medium
 
   * Now date and version is updated bypackage build

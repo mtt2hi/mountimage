@@ -1,0 +1,892 @@
+#!/bin/bash
+# SPDX-License-Identifier: SPDX-License-Identifier: MPL-2.0
+#
+# Copyright (c) 2023 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
+
+VERSION=2.00
+VERSIONDATE=2023
+
+SHORT=hp:m:vr:ulf
+LONG=help,path:,mountpoint:,verbose,profile:,umount,version,last,fstab
+
+if [ -n "$SUDO_USER" ]; then
+  PROFILEBASES=("${HOME}/.config/mountimage" "/home/${SUDO_USER}/.config/mountimage" "/etc/mountimage")
+else
+  PROFILEBASES=("${HOME}/.config/mountimage" "/etc/mountimage")
+fi
+
+PROGNAME=$(basename $0)
+
+#######################################
+# Stores the parameter -r and -m to store a profile "last"
+# Can be used to set up new profiles
+#######################################
+g_last_param=()
+
+#######################################
+# Stores all -p|--path parameters from command line and included profiles
+#######################################
+g_imagedescr_par=()
+
+#######################################
+# Stores the used mountpoint for "/" (root) (-m|--mountpoint)
+#######################################
+g_mountpoint=
+
+#######################################
+# Is set to 'y' to enable additional logs
+#######################################
+g_verbose=
+
+#######################################
+# Is set to used image / device from command line to setup a file system
+#######################################
+g_image_device=
+
+#######################################
+# Is set to 'y', when the mounted file system shall be unmounted
+# before further activities
+#######################################
+g_umount='n'
+
+#######################################
+# Is set to 'y', if profile last can't be written or option "-l|--last" is set
+#######################################
+g_printlast=
+
+#######################################
+# Is used to prevent recursion overflows while loading profiles
+# A profile name can only be loaded one
+#######################################
+declare -A g_loaded_profiles
+
+#######################################
+# Is used to identify partitions used as root file system
+#######################################
+
+declare -A ROOT_GUID_TABLE
+
+ROOT_GUID_TABLE=( \
+  [6523f8ae-3eb1-4e2a-a05a-18b695ae656f]='SD_GPT_ROOT_ALPHA' \
+  [d27f46ed-2919-4cb8-bd25-9531f3c16534]='SD_GPT_ROOT_ARC' \
+  [69dad710-2ce4-4e3c-b16c-21a1d49abed3]='SD_GPT_ROOT_ARM' \
+  [b921b045-1df0-41c3-af44-4c6f280d3fae]='SD_GPT_ROOT_ARM64' \
+  [993d8d3d-f80e-4225-855a-9daf8ed7ea97]='SD_GPT_ROOT_IA64' \
+  [77055800-792c-4f94-b39a-98c91b762bb6]='SD_GPT_ROOT_LOONGARCH64' \
+  [37c58c8a-d913-4156-a25f-48b1b64e07f0]='SD_GPT_ROOT_MIPS_LE' \
+  [700bda43-7a34-4507-b179-eeb93d7a7ca3]='SD_GPT_ROOT_MIPS64_LE' \
+  [1aacdb3b-5444-4138-bd9e-e5c2239b2346]='SD_GPT_ROOT_PARISC' \
+  [1de3f1ef-fa98-47b5-8dcd-4a860a654d78]='SD_GPT_ROOT_PPC' \
+  [912ade1d-a839-4913-8964-a10eee08fbd2]='SD_GPT_ROOT_PPC64' \
+  [c31c45e6-3f39-412e-80fb-4809c4980599]='SD_GPT_ROOT_PPC64_LE' \
+  [60d5a7fe-8e7d-435c-b714-3dd8162144e1]='SD_GPT_ROOT_RISCV32' \
+  [72ec70a6-cf74-40e6-bd49-4bda08e8f224]='SD_GPT_ROOT_RISCV64' \
+  [08a7acea-624c-4a20-91e8-6e0fa67d23f9]='SD_GPT_ROOT_S390' \
+  [5eead9a9-fe09-4a1e-a1d7-520d00531306]='SD_GPT_ROOT_S390X' \
+  [c50cdd70-3862-4cc3-90e1-809a8c93ee2c]='SD_GPT_ROOT_TILEGX' \
+  [44479540-f297-41b2-9af7-d131d5f0458a]='SD_GPT_ROOT_X86' \
+  [4f68bce3-e8cd-4db1-96e7-fbcaf984b709]='SD_GPT_ROOT_X86_64' \
+  [e18cf08c-33ec-4c0d-8246-c6c6fb3da024]='SD_GPT_USR_ALPHA' \
+  [7978a683-6316-4922-bbee-38bff5a2fecc]='SD_GPT_USR_ARC' \
+  [7d0359a3-02b3-4f0a-865c-654403e70625]='SD_GPT_USR_ARM' \
+  [b0e01050-ee5f-4390-949a-9101b17104e9]='SD_GPT_USR_ARM64' \
+  [4301d2a6-4e3b-4b2a-bb94-9e0b2c4225ea]='SD_GPT_USR_IA64' \
+  [e611c702-575c-4cbe-9a46-434fa0bf7e3f]='SD_GPT_USR_LOONGARCH64' \
+  [0f4868e9-9952-4706-979f-3ed3a473e947]='SD_GPT_USR_MIPS_LE' \
+  [c97c1f32-ba06-40b4-9f22-236061b08aa8]='SD_GPT_USR_MIPS64_LE' \
+  [dc4a4480-6917-4262-a4ec-db9384949f25]='SD_GPT_USR_PARISC' \
+  [7d14fec5-cc71-415d-9d6c-06bf0b3c3eaf]='SD_GPT_USR_PPC' \
+  [2c9739e2-f068-46b3-9fd0-01c5a9afbcca]='SD_GPT_USR_PPC64' \
+  [15bb03af-77e7-4d4a-b12b-c0d084f7491c]='SD_GPT_USR_PPC64_LE' \
+  [b933fb22-5c3f-4f91-af90-e2bb0fa50702]='SD_GPT_USR_RISCV32' \
+  [beaec34b-8442-439b-a40b-984381ed097d]='SD_GPT_USR_RISCV64' \
+  [cd0f869b-d0fb-4ca0-b141-9ea87cc78d66]='SD_GPT_USR_S390' \
+  [8a4f5770-50aa-4ed3-874a-99b710db6fea]='SD_GPT_USR_S390X' \
+  [55497029-c7c1-44cc-aa39-815ed1558630]='SD_GPT_USR_TILEGX' \
+  [75250d76-8cc6-458e-bd66-bd47cc81a812]='SD_GPT_USR_X86' \
+  [8484680c-9521-48c6-9c11-b0720656f69e]='SD_GPT_USR_X86_64' \
+  [fc56d9e9-e6e5-4c06-be32-e74407ce09a5]='SD_GPT_ROOT_ALPHA_VERITY' \
+  [24b2d975-0f97-4521-afa1-cd531e421b8d]='SD_GPT_ROOT_ARC_VERITY' \
+  [7386cdf2-203c-47a9-a498-f2ecce45a2d6]='SD_GPT_ROOT_ARM_VERITY' \
+  [df3300ce-d69f-4c92-978c-9bfb0f38d820]='SD_GPT_ROOT_ARM64_VERITY' \
+  [86ed10d5-b607-45bb-8957-d350f23d0571]='SD_GPT_ROOT_IA64_VERITY' \
+  [f3393b22-e9af-4613-a948-9d3bfbd0c535]='SD_GPT_ROOT_LOONGARCH64_VERITY' \
+  [d7d150d2-2a04-4a33-8f12-16651205ff7b]='SD_GPT_ROOT_MIPS_LE_VERITY' \
+  [16b417f8-3e06-4f57-8dd2-9b5232f41aa6]='SD_GPT_ROOT_MIPS64_LE_VERITY' \
+  [d212a430-fbc5-49f9-a983-a7feef2b8d0e]='SD_GPT_ROOT_PARISC_VERITY' \
+  [906bd944-4589-4aae-a4e4-dd983917446a]='SD_GPT_ROOT_PPC64_LE_VERITY' \
+  [9225a9a3-3c19-4d89-b4f6-eeff88f17631]='SD_GPT_ROOT_PPC64_VERITY' \
+  [98cfe649-1588-46dc-b2f0-add147424925]='SD_GPT_ROOT_PPC_VERITY' \
+  [ae0253be-1167-4007-ac68-43926c14c5de]='SD_GPT_ROOT_RISCV32_VERITY' \
+  [b6ed5582-440b-4209-b8da-5ff7c419ea3d]='SD_GPT_ROOT_RISCV64_VERITY' \
+  [7ac63b47-b25c-463b-8df8-b4a94e6c90e1]='SD_GPT_ROOT_S390_VERITY' \
+  [b325bfbe-c7be-4ab8-8357-139e652d2f6b]='SD_GPT_ROOT_S390X_VERITY' \
+  [966061ec-28e4-4b2e-b4a5-1f0a825a1d84]='SD_GPT_ROOT_TILEGX_VERITY' \
+  [2c7357ed-ebd2-46d9-aec1-23d437ec2bf5]='SD_GPT_ROOT_X86_64_VERITY' \
+  [d13c5d3b-b5d1-422a-b29f-9454fdc89d76]='SD_GPT_ROOT_X86_VERITY' \
+  [8cce0d25-c0d0-4a44-bd87-46331bf1df67]='SD_GPT_USR_ALPHA_VERITY' \
+  [fca0598c-d880-4591-8c16-4eda05c7347c]='SD_GPT_USR_ARC_VERITY' \
+  [c215d751-7bcd-4649-be90-6627490a4c05]='SD_GPT_USR_ARM_VERITY' \
+  [6e11a4e7-fbca-4ded-b9e9-e1a512bb664e]='SD_GPT_USR_ARM64_VERITY' \
+  [6a491e03-3be7-4545-8e38-83320e0ea880]='SD_GPT_USR_IA64_VERITY' \
+  [f46b2c26-59ae-48f0-9106-c50ed47f673d]='SD_GPT_USR_LOONGARCH64_VERITY' \
+  [46b98d8d-b55c-4e8f-aab3-37fca7f80752]='SD_GPT_USR_MIPS_LE_VERITY' \
+  [3c3d61fe-b5f3-414d-bb71-8739a694a4ef]='SD_GPT_USR_MIPS64_LE_VERITY' \
+  [5843d618-ec37-48d7-9f12-cea8e08768b2]='SD_GPT_USR_PARISC_VERITY' \
+  [ee2b9983-21e8-4153-86d9-b6901a54d1ce]='SD_GPT_USR_PPC64_LE_VERITY' \
+  [bdb528a5-a259-475f-a87d-da53fa736a07]='SD_GPT_USR_PPC64_VERITY' \
+  [df765d00-270e-49e5-bc75-f47bb2118b09]='SD_GPT_USR_PPC_VERITY' \
+  [cb1ee4e3-8cd0-4136-a0a4-aa61a32e8730]='SD_GPT_USR_RISCV32_VERITY' \
+  [8f1056be-9b05-47c4-81d6-be53128e5b54]='SD_GPT_USR_RISCV64_VERITY' \
+  [b663c618-e7bc-4d6d-90aa-11b756bb1797]='SD_GPT_USR_S390_VERITY' \
+  [31741cc4-1a2a-4111-a581-e00b447d2d06]='SD_GPT_USR_S390X_VERITY' \
+  [2fb4bf56-07fa-42da-8132-6b139f2026ae]='SD_GPT_USR_TILEGX_VERITY' \
+  [77ff5f63-e7b6-4633-acf4-1565b864c0e6]='SD_GPT_USR_X86_64_VERITY' \
+  [8f461b0d-14ee-4e81-9aa9-049b6fb97abd]='SD_GPT_USR_X86_VERITY' \
+  [d46495b7-a053-414f-80f7-700c99921ef8]='SD_GPT_ROOT_ALPHA_VERITY_SIG' \
+  [143a70ba-cbd3-4f06-919f-6c05683a78bc]='SD_GPT_ROOT_ARC_VERITY_SIG' \
+  [42b0455f-eb11-491d-98d3-56145ba9d037]='SD_GPT_ROOT_ARM_VERITY_SIG' \
+  [6db69de6-29f4-4758-a7a5-962190f00ce3]='SD_GPT_ROOT_ARM64_VERITY_SIG' \
+  [e98b36ee-32ba-4882-9b12-0ce14655f46a]='SD_GPT_ROOT_IA64_VERITY_SIG' \
+  [5afb67eb-ecc8-4f85-ae8e-ac1e7c50e7d0]='SD_GPT_ROOT_LOONGARCH64_VERITY_SIG' \
+  [c919cc1f-4456-4eff-918c-f75e94525ca5]='SD_GPT_ROOT_MIPS_LE_VERITY_SIG' \
+  [904e58ef-5c65-4a31-9c57-6af5fc7c5de7]='SD_GPT_ROOT_MIPS64_LE_VERITY_SIG' \
+  [15de6170-65d3-431c-916e-b0dcd8393f25]='SD_GPT_ROOT_PARISC_VERITY_SIG' \
+  [d4a236e7-e873-4c07-bf1d-bf6cf7f1c3c6]='SD_GPT_ROOT_PPC64_LE_VERITY_SIG' \
+  [f5e2c20c-45b2-4ffa-bce9-2a60737e1aaf]='SD_GPT_ROOT_PPC64_VERITY_SIG' \
+  [1b31b5aa-add9-463a-b2ed-bd467fc857e7]='SD_GPT_ROOT_PPC_VERITY_SIG' \
+  [3a112a75-8729-4380-b4cf-764d79934448]='SD_GPT_ROOT_RISCV32_VERITY_SIG' \
+  [efe0f087-ea8d-4469-821a-4c2a96a8386a]='SD_GPT_ROOT_RISCV64_VERITY_SIG' \
+  [3482388e-4254-435a-a241-766a065f9960]='SD_GPT_ROOT_S390_VERITY_SIG' \
+  [c80187a5-73a3-491a-901a-017c3fa953e9]='SD_GPT_ROOT_S390X_VERITY_SIG' \
+  [b3671439-97b0-4a53-90f7-2d5a8f3ad47b]='SD_GPT_ROOT_TILEGX_VERITY_SIG' \
+  [41092b05-9fc8-4523-994f-2def0408b176]='SD_GPT_ROOT_X86_64_VERITY_SIG' \
+  [5996fc05-109c-48de-808b-23fa0830b676]='SD_GPT_ROOT_X86_VERITY_SIG' \
+  [5c6e1c76-076a-457a-a0fe-f3b4cd21ce6e]='SD_GPT_USR_ALPHA_VERITY_SIG' \
+  [94f9a9a1-9971-427a-a400-50cb297f0f35]='SD_GPT_USR_ARC_VERITY_SIG' \
+  [d7ff812f-37d1-4902-a810-d76ba57b975a]='SD_GPT_USR_ARM_VERITY_SIG' \
+  [c23ce4ff-44bd-4b00-b2d4-b41b3419e02a]='SD_GPT_USR_ARM64_VERITY_SIG' \
+  [8de58bc2-2a43-460d-b14e-a76e4a17b47f]='SD_GPT_USR_IA64_VERITY_SIG' \
+  [b024f315-d330-444c-8461-44bbde524e99]='SD_GPT_USR_LOONGARCH64_VERITY_SIG' \
+  [3e23ca0b-a4bc-4b4e-8087-5ab6a26aa8a9]='SD_GPT_USR_MIPS_LE_VERITY_SIG' \
+  [f2c2c7ee-adcc-4351-b5c6-ee9816b66e16]='SD_GPT_USR_MIPS64_LE_VERITY_SIG' \
+  [450dd7d1-3224-45ec-9cf2-a43a346d71ee]='SD_GPT_USR_PARISC_VERITY_SIG' \
+  [c8bfbd1e-268e-4521-8bba-bf314c399557]='SD_GPT_USR_PPC64_LE_VERITY_SIG' \
+  [0b888863-d7f8-4d9e-9766-239fce4d58af]='SD_GPT_USR_PPC64_VERITY_SIG' \
+  [7007891d-d371-4a80-86a4-5cb875b9302e]='SD_GPT_USR_PPC_VERITY_SIG' \
+  [c3836a13-3137-45ba-b583-b16c50fe5eb4]='SD_GPT_USR_RISCV32_VERITY_SIG' \
+  [d2f9000a-7a18-453f-b5cd-4d32f77a7b32]='SD_GPT_USR_RISCV64_VERITY_SIG' \
+  [17440e4f-a8d0-467f-a46e-3912ae6ef2c5]='SD_GPT_USR_S390_VERITY_SIG' \
+  [3f324816-667b-46ae-86ee-9b0c0c6c11b4]='SD_GPT_USR_S390X_VERITY_SIG' \
+  [4ede75e2-6ccc-4cc8-b9c7-70334b087510]='SD_GPT_USR_TILEGX_VERITY_SIG' \
+  [e7bb33fb-06cf-4e81-8273-e543b413e2e2]='SD_GPT_USR_X86_64_VERITY_SIG' \
+  [974a71c0-de41-43c3-be5d-5c5ccd1ad2c0]='SD_GPT_USR_X86_VERITY_SIG' \
+  [c12a7328-f81f-11d2-ba4b-00a0c93ec93b]='SD_GPT_ESP' \
+  [bc13c2ff-59e6-4262-a352-b275fd6f7172]='SD_GPT_XBOOTLDR' \
+  [0657fd6d-a4ab-43c4-84e5-0933c84b4f4f]='SD_GPT_SWAP' \
+  [933ac7e1-2eb4-4f13-b844-0e14e2aef915]='SD_GPT_HOME' \
+  [3b8f8425-20e0-4f3b-907f-1a25a76f98e8]='SD_GPT_SRV' \
+  [4d21b016-b534-45c2-a9fb-5c16e091fd2d]='SD_GPT_VAR' \
+  [7ec6f557-3bc5-4aca-b293-16ef5df639d1]='SD_GPT_TMP' \
+  [773f91ef-66d4-49b5-bd83-d683bf40ad16]='SD_GPT_USER_HOME' \
+  [0fc63daf-8483-4772-8e79-3d69d8477de4]='SD_GPT_LINUX_GENERIC' \
+)
+
+#######################################
+# Check return code of external commands and exit
+# Globals:
+#   -
+# Arguments:
+#   Return code
+#   Linenr at script (optionally)
+#######################################
+function check_rc() {
+local rc=$1
+local linenr=$2
+
+  if test $rc -ne 0; then
+  local linenrstr;
+
+    if [ -n "$linenr" ]; then
+      linenrstr=" at line $linenr"
+    fi
+    err "Exiting with err=${rc}${linenrstr}"
+    exit $rc
+  fi
+}
+
+#######################################
+# Log verbose messages
+# Globals:
+#   -
+# Arguments:
+#   $* : Strings to log
+#######################################
+function vlog() {
+  if [ -n "$g_verbose" ]; then
+    echo "LOG: $*" 1>&2
+  fi
+}
+
+#######################################
+# Echo log to STDERR
+# Globals:
+#   -
+# Arguments:
+#   $* : Strings to log
+#######################################
+function err() {
+  echo "$(basename $0): $*" >&2
+}
+
+
+#######################################
+# Puts help text to STDOUT, but don't exit
+# Globals:
+#   -
+# Arguments:
+#   -
+#######################################
+function help () {
+
+cat <<HeredocDelimiter
+General:
+$PROGNAME has to be started privileged (sudo) to call privileged commands
+
+Usage: $PROGNAME [OPTIONS] IMAGE_FILE|DEVICE
+       $PROGNAME -u [MOUNT_OPTIONS|COMMON_OPTIONS] IMAGE_FILE|DEVICE
+       $PROGNAME -u [COMMON_OPTIONS] MOUNTPOINT
+
+Mount/Umount a system image file or a block device with loaded system image.
+
+Special hints:
+- The program can be called multiple times to add additional sub mounts. At
+  image files the same loop device is reused.
+- Sub mount are ignored before root (/) is mounted.
+
+Options: Umount options | Mount options | Common options
+
+Umount options:
+    -u, --umount            Unmount all partitions at mount point and sub mounts.
+                            This flag is handled before processing mount options.
+
+Mount options:
+    -p, --path=MDESCR       Description with information of partition and mountpoint
+    -f, --fstab             Read entries from /etc/fstab of mounted device
+                            / (root) must be mounted before
+    -m, --mountpoint=DIR    Directory as mount point for / (root)
+
+Common options:
+    -r, --profile=PROFILE   Base name of profile, searched at PROFILEPATH.
+                            Content is embedded in order of command options,
+    -v, --verbose           Display additional infos to STDERR
+    -l, --last              Print parameters of last mount options after processing
+                            as preset for a new profile
+    -h, --help              Print this help and exit
+        --version           Print version of $PROGNAME and exit
+
+Automounting of / (root):
+
+The first valid mount can be setup by an option or be set automatically, if following conditions are met:
+
+- GPT partitioning is used
+- One has a partition type "SD_GPT_ROOT*" (the related UUID) set
+- If more than one partition have been marked as ROOT partition, the first partition is used
+
+Some information about partition types can be found at:
+https://uapi-group.org/specifications/specs/discoverable_partitions_specification/
+
+Possible entries for MDESCR:
+
+PARTLABEL=<label>:<mount point>
+	label:          label of partition (only GPT, fallback to LABEL)
+	mount point: 	mount point at system image, e.g. / or /home or /bin, etc.
+
+LABEL=<label>:<mount point>
+	label:          label of file system
+	mount point:    mount point at system image
+
+UUID=<id>:<mount point>
+	id:             uuid of file system
+	mount point:    mount point at system image
+
+PARTUUID=<id>:<mount point>
+	id:             uuid of partition> (only GPT)
+	mount point:    mount point at system image
+
+PARTNR=<id>:<mount point>
+	id:             simply the partition number
+	mount point:    mount point at system image
+
+A profile is stored at a file with same name at one of the locations at PROFILEPATH:
+$(printf "\t%s\n" "${PROFILEBASES[@]}")
+
+Each profile can set all mount options and another profiles, but each profile can only be loaded once.
+
+Example of profile:
+-p PARTLABEL=system:/
+-p PARTLABEL=general_storage:/home
+-p PARTLABEL=boot:/boot
+-p PARTLABEL=EFI:/boot/efi
+-p PARTLABEL=firmware:/boot/firmware
+
+Some examples to call the command $PROGNAME:
+
+$PROGNAME -p PARTLABEL=system:/ -p PARTLABEL=general_storage:/home -p ... -m /mnt/rootfs /dev/sdx
+
+$PROGNAME -p PARTLABEL=system:/ -f -m /mnt/rootfs /dev/sdx
+
+$PROGNAME -u -p PARTLABEL=system:/ --fstab -m /mnt/rootfs system.img
+
+$PROGNAME -u /mnt/rootfs
+
+$PROGNAME -r apertis -m /mnt/rootfs /dev/sdx
+
+$PROGNAME -f -m /mnt/rootfs system.img # only if a partition is marked as ROOT partition)
+
+
+HeredocDelimiter
+
+}
+
+#######################################
+# provides the partition type for given partition
+# Globals:
+#   ROOT_GUID_TABLE
+# Arguments:
+#   device of partition (loop| block)
+# Outputs:
+#   Writes partition type to stdout
+#######################################
+
+function getparttype() {
+local sdev=$1
+local sdev_parttypeuuid
+local sdev_parttype
+
+  sdev_parttypeuuid=$(lsblk -n -p -o PARTTYPE $sdev)
+  if [ -n "$sdev_parttypeuuid" ]; then
+    sdev_parttype="${ROOT_GUID_TABLE[$sdev_parttypeuuid]}"
+  fi
+  echo -n "$sdev_parttype"
+}
+
+#######################################
+# provides a list of partition devices with SD_GPT_ROOT* at its partition type
+# Arguments:
+#   image / loop device
+# Outputs:
+#   Writes list of partition devices
+#######################################
+
+function getrootfspartition() {
+local dev=$1
+local devp=$2
+local sdev_parttype
+
+  vlog "Get partition types of $dev (* are possible root partitions):"
+  for sdev in ${devp}?*
+  do
+    sdev_parttype=$(getparttype $sdev)
+    if echo "$sdev_parttype" | grep -q '^SD_GPT_ROOT'; then
+      vlog "* $sdev:$sdev_parttype"
+      echo "$sdev"
+    else
+      vlog "  $sdev:$sdev_parttype"
+    fi
+  done
+}
+
+#######################################
+# checks root mount and tries to mount it automatically my partition type
+# Arguments:
+#   image / loop device
+#######################################
+
+function checkandtrytomountroot() {
+local dev=$1
+local devp=$2
+local rootmnt
+local rootfs_devices=()
+local size
+local id
+
+  rootmnt=$(findmnt "${g_mountpoint}" -o TARGET  -n)
+  if [ -z "${rootmnt}" ];then
+    rootfs_devices=( $(getrootfspartition ${dev} ${devp}) )
+    size=${#rootfs_devices[@]}
+    if [ "$size" -eq "0" ]; then
+      echo "/ is not mounted for $dev, can't handle sub mounts"
+      mdevice=''
+      mbind=''
+    else
+      if [ "$size" -gt "1" ]; then
+        err "There is more than one root partition at device"
+        for id in "${rootfs_devices[@]}"; do
+          err "  $id"
+        done
+        err "Using ${rootfs_devices[0]}"
+      fi
+      vlog "Mounting root partition ${rootfs_devices[0]} at ${g_mountpoint}/"
+      mount "${rootfs_devices[0]}" "${g_mountpoint}/"
+      check_rc $? $LINENO
+    fi
+    rootmnt=$(findmnt "${g_mountpoint}" -o TARGET  -n)
+  fi
+  echo "$rootmnt"
+}
+
+
+
+#######################################
+# Searchs for the filename of a profile at a given search path
+# Globals:
+#   PROFILEBASES
+# Arguments:
+#   Flag to search for existing file
+#   Basename of profile
+# Outputs:
+#   Writes path of profile to stdout
+#######################################
+get_profilename () {
+local profilehave2exist="$1"
+local profile="$2"
+local profilepath
+
+  for pbasedir in "${PROFILEBASES[@]}"; do
+    # echo "PF=${pbasedir}/$profile"
+    if [ "$profilehave2exist" == "n" ] || \
+       [ -f "${pbasedir}/$profile" ]; then
+      profilepath="${pbasedir}/$profile"
+      echo "$profilepath"
+      return
+    fi
+  done
+}
+
+#######################################
+# Parses the options at the command line and profiles.
+# Globals:
+#   LONG
+#   SHORT
+#   PROFILEBASES
+#   g_imagedescr_par()
+#   g_mountpoint
+#   g_verbose
+#   g_image_device
+#
+# Arguments:
+#   Filename of profile or '' to indicate command line
+#   Command line
+#######################################
+function parse_cmd () {
+local profilefn=$1
+local parsed
+
+  shift
+
+#options
+#h|help|?: help
+#p|path: path
+#r|profile: profile
+#m|g_mountpoint: mount point
+#v:g_verbose
+
+  parsed=`getopt --options $SHORT --longoptions $LONG --name "$0" -- "$@"`
+
+  if [[ $? != 0 ]]; then
+      exit 2
+  fi
+  eval set -- "$parsed"
+
+  while true; do
+      case "$1" in
+          -h|--help)
+              help
+              shift
+              exit 0
+              ;;
+          -p|--path)
+              g_imagedescr_par+=("$2")
+              g_last_param+=("$1 $2")
+              shift 2
+              ;;
+          -f|--fstab)
+              g_imagedescr_par+=("FSTAB")
+              g_last_param+=("$1")
+              shift
+              ;;
+          -m|--mountpoint)
+              g_mountpoint="$2"
+              g_last_param+=("$1 $2")
+              shift 2
+              ;;
+          -r|--profile)
+              profile="$2"
+              shift 2
+              if [ -n "${g_loaded_profiles[$profile]}" ]; then
+                err "Profiles can't be loaded multiple times ($profile)"
+                exit 1
+              else
+                vlog "Reading profile $profile"
+                g_loaded_profiles[$profile]='y'
+                profilepath=$(get_profilename y "$profile")
+                if [ -n "$profilepath" ]; then
+                  local xcmd
+                  xcmd=($(cat $profilepath))
+                  parse_cmd "$profilepath" "${xcmd[@]}"
+                else
+                  err "Can't find $profile at ${PROFILEBASES[@]}"
+                  exit 1
+                fi
+              fi
+              ;;
+          -v|--verbose)
+              g_verbose=y
+              shift
+              ;;
+          -u|--umount)
+              g_umount=y
+              shift
+              ;;
+          -l|--last)
+              g_last=y
+              shift
+              ;;
+          --version)
+              echo "$(basename $0) $VERSION ($VERSIONDATE)"
+              shift
+              exit 0
+              ;;
+          --)
+              shift
+              break
+              ;;
+          *)
+              echo "Programming error \|$1\|"
+              exit 3
+              ;;
+      esac
+  done
+
+  if [[ $# -gt 1 ]]; then
+    echo "Wrong parameters $@"
+  elif [[ $# -eq 1 ]]; then
+    if [ -z "$g_imagedescr_par" ]; then
+      g_mountpoint="$1"
+    else
+      g_image_device="$1"
+    fi
+  fi
+
+}
+
+#######################################
+# Gets the block device /dev/... of a partition for a given file system LABEL, but only
+# restricted to a disk device.
+# Arguments:
+#   Disk device
+#   File system label
+# Outputs:
+#   Writes block device to stdout
+#######################################
+function getdevicefromlabel() {
+
+local devp=$1
+local label=$2
+local sdev
+local sdev_label
+
+  for sdev in ${devp}*
+  do
+    sdev_label=$(blkid -s LABEL -o value $sdev)
+    if test "$sdev_label" = "$label"; then
+      echo $sdev
+      return
+    fi
+  done
+}
+
+#######################################
+# Gets the block device /dev/... of a partition for a given partition label (only gpt)
+# but only restricted to a disk device.
+# Arguments:
+#   Disk device
+#   Partition label
+# Outputs:
+#   Writes block device to stdout
+#######################################
+function getdevicefrompartlabel() {
+
+local devp=$1
+local label=$2
+local sdev
+local sdev_label
+
+  for sdev in ${devp}*
+  do
+    sdev_label=$(blkid -s PARTLABEL -o value $sdev)
+    if test "$sdev_label" = "$label"; then
+      echo $sdev
+      return
+    fi
+  done
+}
+
+#######################################
+# Gets the block device /dev/... of a partition for a uuid of file system
+# but only restricted to a disk device.
+# Arguments:
+#   Disk device
+#   Uuid id of file system
+# Outputs:
+#   Writes block device to stdout
+#######################################
+function getdevicefromuuid() {
+
+local devp=$1
+local label=$2
+local sdev
+local sdev_label
+
+  for sdev in ${devp}*
+  do
+    sdev_label=$(blkid -s UUID -o value $sdev)
+    if test "$sdev_label" = "$label"; then
+      echo $sdev
+      return
+    fi
+  done
+}
+
+#######################################
+# Gets the block device /dev/... of a partition for a given parttion uuid (only gpt)
+# but only restricted to a disk device.
+# Arguments:
+#   Disk device
+#   Partition uuid
+# Outputs:
+#   Writes block device to stdout
+#######################################
+function getdevicefrompartuuid() {
+
+local devp=$1
+local label=$2
+local sdev
+local sdev_label
+
+  for sdev in ${devp}*
+  do
+    sdev_label=$(blkid -s PARTUUID -o value $sdev)
+    if test "$sdev_label" = "$label"; then
+      echo $sdev
+      return
+    fi
+  done
+}
+#######################################
+# Analyses given FSTAB file to find additional mounts
+# Arguments:
+#   Path to FSTAB file
+# Outputs:
+#   Writes -p|--path rules to stdout to embedd at mount sequence
+#######################################
+function getdescr_from_fstab()
+{
+local fstab=$1
+local  mountdescr mountpoint fstype options S1 S2
+
+  vlog "Reading FSTAB at $1"
+  while read -r mountdescr mountpoint fstype options S1 S2
+  do
+  #  partnr=$(echo $LINE|perl -ne 'print "$1\n" if /#\s+generated\s+by\s+\w+.sh\s+([^\s]+)\s+([^\s]+)/')
+    if ! echo $mountdescr | grep -q '^[[:blank:]]*#' && test -n "$options"; then
+      if test "$mountpoint" != "/"; then
+        if  echo $options | grep -q '\bbind\b'; then
+          echo -n "BIND=$mountdescr:$mountpoint "
+        else
+          echo -n "$mountdescr:$mountpoint "
+        fi
+      fi
+    fi
+  done < "$fstab"
+  echo
+}
+
+#######################################
+# Mounts an entry -p|--path of given block device to intended mount point
+# Globals:
+#   g_mountpoint
+# Arguments:
+#   loop / block device
+#   loopxp / block device
+#   Entry, given by -p|--path option
+# Outputs:
+#   Writes used commands to stdout
+#######################################
+function mountdescrentry()
+{
+local device=$1
+local devicep=$2
+local entry=$3
+local descr labelpath idtype idvalue mdevice
+local mbind rootmnt
+
+  IFS=: read -r descr labelpath <<< "$entry"
+  IFS=\= read -r idtype idvalue <<< "$descr"
+  if test "$idtype" = "PARTLABEL"; then
+    mdevice=$(getdevicefrompartlabel ${devicep} ${idvalue})
+    if [ -z "$mdevice" ]; then
+      mdevice=$(getdevicefromlabel ${devicep} ${idvalue})
+      if [ -n "$mdevice" ]; then
+        echo "Using LABEL instead of PARTLABEL for ${idvalue} at ${mdevice}"
+      fi
+    fi
+  elif test "$idtype" = "LABEL"; then
+    mdevice=$(getdevicefromlabel ${devicep} ${idvalue})
+  elif test "$idtype" = "UUID"; then
+    mdevice=$(getdevicefromuuid ${devicep} ${idvalue})
+  elif test "$idtype" = "PARTUUID"; then
+    mdevice=$(getdevicefrompartuuid ${devicep} ${idvalue})
+  elif test "$idtype" = "BIND"; then
+    mbind=${idvalue}
+    mdevice=
+  elif test "$idtype" = "PARTNR"; then
+    mdevice="${devicep}${idvalue}"
+  else
+    err "Can't understand $\"$descr\"\n"
+    exit 1
+  fi
+  if test "$labelpath" != "/"; then
+    rootmnt=$(checkandtrytomountroot $device $devicep)
+    if [ -z "${rootmnt}" ];then
+      echo "/ is not mounted for $device, can't handle sub mounts"
+      mdevice=''
+      mbind=''
+    fi
+  fi
+  if [ -n "${mdevice}" ] || [ -n "${mbind}" ]; then
+    if [ ! -d "${g_mountpoint}$labelpath" ]; then
+      mkdir -p "${g_mountpoint}$labelpath"
+      check_rc $? $LINENO
+    fi
+    # if not already mounted
+    if ! findmnt "${g_mountpoint}$labelpath" -o TARGET  -n > /dev/null; then
+      if [ -n "${mdevice}" ] ; then
+        vlog "Mounting partition ${mdevice} at ${g_mountpoint}$labelpath"
+        mount "${mdevice}" "${g_mountpoint}$labelpath"
+        check_rc $? $LINENO
+      else
+        vlog "Binding directory ${g_mountpoint}$mbind at ${g_mountpoint}$labelpath"
+        mount -o bind "${g_mountpoint}$mbind" "${g_mountpoint}$labelpath"
+        check_rc $? $LINENO
+      fi
+    fi
+  fi
+}
+
+# Start of main program, analyse the parameters
+
+# Parse the command line
+
+parse_cmd '' "$@"
+
+vlog "Parameters:"
+vlog "  Mount point=$g_mountpoint"
+vlog "  Image device:$g_image_device"
+vlog "  Umount before further processing:$g_umount"
+for i in "${!g_imagedescr_par[@]}"; do
+  vlog "  "$(printf '${g_imagedescr_par[%s]}=%s\n' "$i" "${g_imagedescr_par[i]}")
+done
+vlog "Last parameters:${g_last_param[@]}"
+
+# if [ $EUID != 0 ] ; then
+#  err "$EUID:Works only, if started privileged (sudo)"
+#  exit 1
+# fi
+
+if [ ! -d "$g_mountpoint" ]; then
+  err "Provide a valid mount point (given \"$g_mountpoint\")"
+  exit 1
+fi
+
+# Start of processing
+
+if test "$g_umount" = 'y'; then
+  system_dev=$(findmnt "$g_mountpoint" -o SOURCE  -n)
+  if test -n "${system_dev}"; then
+    for mountpoint in $(findmnt -R "${g_mountpoint}" -o TARGET  -n | tac | perl -ne 'print "$1\n" if /(\/.*)/') ;
+    do
+      vlog "Unmounting ${mountpoint}"
+      umount "${mountpoint}"
+      check_rc $? $LINENO
+      sync
+    done
+    device=$(echo ${system_dev} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/')
+    loop_dev=$(echo ${system_dev} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')
+  else
+    loop_dev=$(echo ${device} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')
+  fi
+  if test -n "${loop_dev}" ; then
+    vlog "Deleting loop device:${loop_dev}"
+    image=$(losetup -a|perl -ne 'print "$1\n" if /''\((.+?)\)/')
+    check_rc $? $LINENO
+    losetup -d ${loop_dev}
+    check_rc $? $LINENO
+  else
+    image=
+  fi
+fi
+if [ -n "$g_imagedescr_par" ]; then
+  if [ -b "$g_image_device" ]; then
+    vlog "Block device: $g_image_device"
+    device=$g_image_device
+    devicep=$device
+    image=
+    system_dev=
+    #  partprobe has to be called
+    partprobe ${device} &> /dev/null
+    check_rc $? $LINENO
+  elif [ -f "$g_image_device" ]; then
+    system_dev=$(findmnt "${g_mountpoint}" -o SOURCE  -n)
+    if [ -n "$system_dev" ]; then
+      device=$(echo ${system_dev} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/')
+    else
+      device=$(losetup -f)
+      check_rc $? $LINENO
+      vlog "Image file $g_image_device setup at ${device}"
+      losetup -P ${device} "$g_image_device"
+      check_rc $? $LINENO
+      # here a sleep has to be set, because PARTTYPE can't get immediately after setup
+      sleep 1
+    fi
+    devicep="${device}p"
+    image="$g_image_device"
+    system_dev=
+  else
+    err "Provide a valid device/image file (given \"$g_image_device\")"
+    exit 1
+  fi
+  if test -n "${devicep}"; then
+    for str in ${g_imagedescr_par[@]}; do
+      if test "$str" != "FSTAB"; then
+        mountdescrentry "$device" "$devicep" "$str"
+      else
+        rootmnt=$(checkandtrytomountroot $device $devicep)
+        imagedescr_par_fstab=$(getdescr_from_fstab "$g_mountpoint"/etc/fstab)
+        for str2 in ${imagedescr_par_fstab[@]}; do
+          mountdescrentry "$device" "$devicep"  "$str2"
+        done
+      fi
+    done
+  fi
+fi
+
+# End of processing
+
+if [ -n "$g_last" ]; then
+  echo "Last profile is:"
+  for param in "${g_last_param[@]}"; do
+    echo "$param"
+  done
+fi

@@ -2,29 +2,46 @@
 title: MOUNTIMAGE.SH
 section: 1
 header: User Manual
-footer: mountimage.sh  1.11
-date: November 11,2022
+footer: mountimage.sh  2.00
+date: February 21,2023
 ---
 # NAME
-Mountimage.sh - Set up of Linux system images for offline changes. 
+Mountimage - Set up of Linux system images for offline changes.
 
 # SYNOPSIS
-[MOUNTPOINT=<mount directory of root\> ][IMAGEDESCR=<list of passignment\> ] **mountimage.sh** imagename|device [profile] [mountpoint]
-[MOUNTPOINT=<mount directory of root\> ] **mountimage.sh** -u [mountpoint]
+**mountimage** [OPTIONS] IMAGE_FILE|DEVICE  
+**mountimage** -u [MOUNT_OPTIONS|COMMON_OPTIONS] IMAGE_FILE|DEVICE  
+**mountimage** -u [COMMON_OPTIONS] MOUNTPOINT
 
 # DESCRIPTION
-**mountimage.sh** is used to mount/umount Linux system images with multiple partitions at a given mountpoint (look also to option **mountpoint** and environment variable **MOUNTPOINT**) according to a profile. 
+**mountimage** is used to mount/umount Linux system images with multiple partitions at a given mountpoint  according to
+
+- A list of options 
+- A profile
+- A given **FSTAB** file.
 
 These images are set up with multiple partitions: one is intended to be the root file system to be mounted as **/**, the other are intended to be mounted as sub directories (e.g. **/home** or **/boot**)
 
 The images are stored at image files or mass storage devices.
 
-The assignments partition=>mountpoint are provided by array environment variable **IMAGEDESCR** and stored at profiles. They are provided by different sources with following priorities.
+Special hints:
 
-- Option **mountdir** at command line
-- Environment variables **IMAGEDESCR** and **MOUNTPOINT**
-- User defined profile || last used setting at a **last** profile
-- Default profile embedded at the script
+- The program can be called multiple times to add additional sub mounts. At
+  image files the same loop device is reused.
+- Sub mount are ignored before root (/) is mounted.
+
+Automounting of / (root):
+
+The first valid mount can be setup by an option or be set automatically, if following conditions are met:
+
+- GPT partitioning is used
+- One has a partition type "SD_GPT_ROOT*" (the related UUID) set
+- If more than one partition have been marked as ROOT partition, the first partition is used
+
+Some information about partition types can be found at:
+https://uapi-group.org/specifications/specs/discoverable_partitions_specification/
+
+
 
 After mounting the system image it can be used for further activities like running devroots (e.g. **systemd-nspawn**).
 After umounting the storage device / image file of the changed system can be processed like
@@ -32,82 +49,83 @@ After umounting the storage device / image file of the changed system can be pro
 - Plugging the storage device at a target
 - Deploy a new image with changes
 
-The last settings are saved to be used at next time.
-
-**mountimage.sh** alway does an implicit **umount** of given mountpoint before proceeding to mount an system image.
-
 # OPTIONS
-**imagename** 
-: Path to system image file (.img) with partitions. Image file will be mounted with help of **losetup**
 
-**device** 
-: Name of storage device like **/dev/sdx**. Can be e.g. an SD card or SSD or USB stick device.
+**Options: Umount options | Mount options | Common options**
 
-**-u**
-: Umount the last mounted system image
+**Umount options**:
 
-**mountdir**
-: Mountpoint for / of system image. Default at script is **/mnt/rootdir**
+    -u, --umount            Unmount all partitions at mount point and sub mounts.
+                            This flag is handled before processing mount options.
 
-**profile**
-: File with environment variables **IMAGEDSCR** and/or **MOUNTPOINT**, stored at **~/mountimage/**. A profile **last** can be used to setup own profiles.
+**Mount options**:
 
-**passignment**
-: Assigns a partitition to a mount point and can be set in following formats:
+    -p, --path=MDESCR       Description with information of partition and mountpoint
+    -f, --fstab             Read entries from /etc/fstab of mounted device
+                            / (root) must be mounted before
+    -m, --mountpoint=DIR    Directory as mount point for / (root)
 
-- **PARTLABEL=<partlabel\>:<mountdir\>**
-: **partlabel** defines partition label/name. If partition label can't be found, label is interpreted as **LABEL**, e.g. **PARTLABEL=system:/** or **PARTLABEL=boot:/boot**
+**Common options**:
 
-- **LABEL=<label\>:<mountdir\>**
-: **label** defines file system label/name, e.g. **LABEL=system:/** or **LABEL=boot:/boot**
+    -r, --profile=PROFILE   Base name of profile, searched at PROFILEPATH.
+                            Content is embedded in order of command options,
+    -v, --verbose           Display additional infos to STDERR
+    -l, --last              Print parameters of last mount options after processing
+                            as preset for a new profile
+    -h, --help              Print this help and exit
+        --version           Print version of mountimage and exit
 
-- **UUID=<uuid\>:<mountdir\>**
-: **uuid** defines file system uuid, e.g. **UUID=26bba953-3569-4e4a-9371-324256fdbb2d:/** 
+Possible entries for MDESCR:
 
-- **PARTUUID=<partuuid\>:<mountdir\>**
-: **partuuid** defines uuid of partition, e.g. **PARTUUID=4375eadd-a68f-41ea-8118-a2419206d164:/** 
+PARTLABEL=<label\>:<mount point\>  
+	label:          label of partition (only GPT, fallback to LABEL)  
+	mount point: 	mount point at system image, e.g. / or /home or /bin, etc.
 
-- **PARTNR=<partnr\>:<mountdir\>**
-: **partnr** defines partition number, e.g. **2:/** or **1:/boot**
+LABEL=<label\>:<mount point\>  
+	label:          label of file system  
+	mount point:    mount point at system image
 
-- **FSTAB**
-: **FSTAB** reads entries from **/etc/fstab** of mounted **/** volume, so an additional description for **/** must preceed. E.g. **IMAGEDESCR=(PARTLABEL=system:/ FSTAB)** 
+UUID=<id\>:<mount point\>  
+	id:             uuid of file system  
+	mount point:    mount point at system image
 
-# ENVIRONMENT
+PARTUUID=<id\>:<mount point\>  
+	id:             uuid of partition> (only GPT)  
+	mount point:    mount point at system image
 
-**IMAGEDSCR**
-: Defines a list of assignments for partitions. The format is **IMAGEDESCR=(passignment(1) passignment(2) ...)**, e.g.
+PARTNR=<id\>:<mount point\>  
+	id:             simply the partition number  
+	mount point:    mount point at system image
 
-- **IMAGEDESCR=(PARTLABEL=system:/ PARTLABEL=home:/home)** at profiles
-- **IMAGEDESCR="PARTLABEL=system:/ PARTLABEL=home:/home"** at environment variable 
+A profile is stored at a file with same name at one of the locations at PROFILEPATH:
 
-**MOUNTPOINT**
-: Defines mount point of root partition and basis for sub mounts. Same to parameter **mountdir**, but overrules this. E.g. **/mnt/rootfs**, **~/mymount**
+- /home/user/.config/mountimage
+- /etc/mountimage
+
+Each profile can set all mount options and another profiles, but each profile can only be loaded once.
+
+Example of profile:
+
+ -p PARTLABEL=system:/  
+ -p PARTLABEL=general_storage:/home  
+ -p PARTLABEL=boot:/boot  
+ -p PARTLABEL=EFI:/boot/efi  
+ -p PARTLABEL=firmware:/boot/firmware  
+
  
 # EXAMPLES
-**mountimage.sh test.img**
-: Mounts the Image **test.img** with default settings.
 
-**mountimage.sh -u**
-: Umount the last mount of **mountimage.sh** at **/mnt/rootfs**
+mountimage -p PARTLABEL=system:/ -p PARTLABEL=general_storage:/home -p ... -m /mnt/rootfs /dev/sdx
 
-**mountimage.sh test.img /mnt/rootfs2**
-: Mounts the Image **test.img** at **/mnt/rootfs2** (instead of default **/mnt/rootfs**).
+mountimage -p PARTLABEL=system:/ -f -m /mnt/rootfs /dev/sdx
 
-**mountimage.sh -u /mnt/rootfs2**
-: Umount the last mount of **mountimage.sh** at **/mnt/rootfs2** 
+mountimage -u -p PARTLABEL=system:/ --fstab -m /mnt/rootfs system.img
 
-**mountimage.sh /dev/sde**
-: Mounts the device **/dev/sde** at **/mnt/rootfs** with default settings.
+mountimage -u /mnt/rootfs
 
-**mountimage.sh /dev/sde pi4**
-: Loads the profile from **~/mountimage/pi4** and mounts the device **/dev/sde** at **/mnt/rootfs** (can be overruled by profile) with these settings.
+mountimage -r apertis -m /mnt/rootfs /dev/sdx
 
-**mountimage.sh /dev/sde pi4 ~/mymount**
-: Loads the profile from **~/mountimage/pi4** and mounts the device **/dev/sde** at **~/mymount** with these settings.
-
-**IMAGEDESCR="PARTLABEL=system:/ PARTLABEL=home:/home" mountimage.sh /dev/sde pi4**
-: Loads the profile from **~/mountimage/pi4**, replaces the mount scheme with the one **IMAGEDESCR** at environment variable. Mounts the device **/dev/sde** at **/mnt/rootfs** (can be overruled by profile) with these settings.
+mountimage -f -m /mnt/rootfs system.img # only if a partition is marked as ROOT partition)
 
 # AUTHORS
 Written by Thomas Mittelstädt

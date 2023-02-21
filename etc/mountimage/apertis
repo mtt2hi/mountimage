@@ -1,0 +1,5 @@
+-p PARTLABEL=system:/
+-p PARTLABEL=general_storage:/home
+-p PARTLABEL=boot:/boot
+-p PARTLABEL=EFI:/boot/efi
+-p PARTLABEL=firmware:/boot/firmware
