@@ -1,3 +1,9 @@
+mountimage (2.02) apertis; urgency=medium
+
+  * version change corrected
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Wed, 01 Mar 2023 12:51:43 +0000
+
 mountimage (2.01) apertis; urgency=medium
 
   * profile for fstab with system partition added.
