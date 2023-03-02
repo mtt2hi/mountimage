@@ -1,8 +1,8 @@
 ---
-title: MOUNTIMAGE.SH
+title: MOUNTIMAGE
 section: 1
 header: User Manual
-footer: mountimage.sh  2.00
+footer: mountimage  2.00
 date: February 21,2023
 ---
 # NAME
