@@ -1,3 +1,9 @@
+mountimage (2.04) apertis; urgency=medium
+
+  * Some rework caused by MR with Apertis 
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Wed, 15 Mar 2023 13:36:57 +0000
+
 mountimage (2.03) apertis; urgency=medium
 
   * Some correction at manpage update
