@@ -8,7 +8,7 @@ Build-Depends: debhelper (>= 8.1.3), pandoc
 Package: mountimage
 Section: misc
 Architecture: all
-Depends: util-linux, mount 
+Depends: util-linux, mount, parted 
 Description: Mount an image file or an image device to a local mountpoint
   mountimage.sh mounts and umounts an image file or an image device to a local mount point.
   It uses profiles at at ~/mountimage.profiles.

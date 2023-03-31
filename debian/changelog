@@ -1,3 +1,9 @@
+mountimage (2.05) apertis; urgency=medium
+
+  * Dependency added
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Fri, 31 Mar 2023 11:51:48 +0000
+
 mountimage (2.04) apertis; urgency=medium
 
   * Some rework caused by MR with Apertis 
