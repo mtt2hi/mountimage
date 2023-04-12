@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2023 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
 
-VERSION=2.00
+VERSION=2.01
 VERSIONDATE=2023
 
 SHORT=hp:m:vr:ulf
@@ -86,44 +86,7 @@ ROOT_GUID_TABLE=( \
   [c50cdd70-3862-4cc3-90e1-809a8c93ee2c]='SD_GPT_ROOT_TILEGX' \
   [44479540-f297-41b2-9af7-d131d5f0458a]='SD_GPT_ROOT_X86' \
   [4f68bce3-e8cd-4db1-96e7-fbcaf984b709]='SD_GPT_ROOT_X86_64' \
-  [fc56d9e9-e6e5-4c06-be32-e74407ce09a5]='SD_GPT_ROOT_ALPHA_VERITY' \
-  [24b2d975-0f97-4521-afa1-cd531e421b8d]='SD_GPT_ROOT_ARC_VERITY' \
-  [7386cdf2-203c-47a9-a498-f2ecce45a2d6]='SD_GPT_ROOT_ARM_VERITY' \
-  [df3300ce-d69f-4c92-978c-9bfb0f38d820]='SD_GPT_ROOT_ARM64_VERITY' \
-  [86ed10d5-b607-45bb-8957-d350f23d0571]='SD_GPT_ROOT_IA64_VERITY' \
-  [f3393b22-e9af-4613-a948-9d3bfbd0c535]='SD_GPT_ROOT_LOONGARCH64_VERITY' \
-  [d7d150d2-2a04-4a33-8f12-16651205ff7b]='SD_GPT_ROOT_MIPS_LE_VERITY' \
-  [16b417f8-3e06-4f57-8dd2-9b5232f41aa6]='SD_GPT_ROOT_MIPS64_LE_VERITY' \
-  [d212a430-fbc5-49f9-a983-a7feef2b8d0e]='SD_GPT_ROOT_PARISC_VERITY' \
-  [906bd944-4589-4aae-a4e4-dd983917446a]='SD_GPT_ROOT_PPC64_LE_VERITY' \
-  [9225a9a3-3c19-4d89-b4f6-eeff88f17631]='SD_GPT_ROOT_PPC64_VERITY' \
-  [98cfe649-1588-46dc-b2f0-add147424925]='SD_GPT_ROOT_PPC_VERITY' \
-  [ae0253be-1167-4007-ac68-43926c14c5de]='SD_GPT_ROOT_RISCV32_VERITY' \
-  [b6ed5582-440b-4209-b8da-5ff7c419ea3d]='SD_GPT_ROOT_RISCV64_VERITY' \
-  [7ac63b47-b25c-463b-8df8-b4a94e6c90e1]='SD_GPT_ROOT_S390_VERITY' \
-  [b325bfbe-c7be-4ab8-8357-139e652d2f6b]='SD_GPT_ROOT_S390X_VERITY' \
-  [966061ec-28e4-4b2e-b4a5-1f0a825a1d84]='SD_GPT_ROOT_TILEGX_VERITY' \
-  [2c7357ed-ebd2-46d9-aec1-23d437ec2bf5]='SD_GPT_ROOT_X86_64_VERITY' \
-  [d13c5d3b-b5d1-422a-b29f-9454fdc89d76]='SD_GPT_ROOT_X86_VERITY' \
-  [d46495b7-a053-414f-80f7-700c99921ef8]='SD_GPT_ROOT_ALPHA_VERITY_SIG' \
-  [143a70ba-cbd3-4f06-919f-6c05683a78bc]='SD_GPT_ROOT_ARC_VERITY_SIG' \
-  [42b0455f-eb11-491d-98d3-56145ba9d037]='SD_GPT_ROOT_ARM_VERITY_SIG' \
-  [6db69de6-29f4-4758-a7a5-962190f00ce3]='SD_GPT_ROOT_ARM64_VERITY_SIG' \
-  [e98b36ee-32ba-4882-9b12-0ce14655f46a]='SD_GPT_ROOT_IA64_VERITY_SIG' \
-  [5afb67eb-ecc8-4f85-ae8e-ac1e7c50e7d0]='SD_GPT_ROOT_LOONGARCH64_VERITY_SIG' \
-  [c919cc1f-4456-4eff-918c-f75e94525ca5]='SD_GPT_ROOT_MIPS_LE_VERITY_SIG' \
-  [904e58ef-5c65-4a31-9c57-6af5fc7c5de7]='SD_GPT_ROOT_MIPS64_LE_VERITY_SIG' \
-  [15de6170-65d3-431c-916e-b0dcd8393f25]='SD_GPT_ROOT_PARISC_VERITY_SIG' \
-  [d4a236e7-e873-4c07-bf1d-bf6cf7f1c3c6]='SD_GPT_ROOT_PPC64_LE_VERITY_SIG' \
-  [f5e2c20c-45b2-4ffa-bce9-2a60737e1aaf]='SD_GPT_ROOT_PPC64_VERITY_SIG' \
-  [1b31b5aa-add9-463a-b2ed-bd467fc857e7]='SD_GPT_ROOT_PPC_VERITY_SIG' \
-  [3a112a75-8729-4380-b4cf-764d79934448]='SD_GPT_ROOT_RISCV32_VERITY_SIG' \
-  [efe0f087-ea8d-4469-821a-4c2a96a8386a]='SD_GPT_ROOT_RISCV64_VERITY_SIG' \
-  [3482388e-4254-435a-a241-766a065f9960]='SD_GPT_ROOT_S390_VERITY_SIG' \
-  [c80187a5-73a3-491a-901a-017c3fa953e9]='SD_GPT_ROOT_S390X_VERITY_SIG' \
-  [b3671439-97b0-4a53-90f7-2d5a8f3ad47b]='SD_GPT_ROOT_TILEGX_VERITY_SIG' \
-  [41092b05-9fc8-4523-994f-2def0408b176]='SD_GPT_ROOT_X86_64_VERITY_SIG' \
-  [5996fc05-109c-48de-808b-23fa0830b676]='SD_GPT_ROOT_X86_VERITY_SIG' \
+  [c12a7328-f81f-11d2-ba4b-00a0c93ec93b]='SD_GPT_ESP' \
 )
 
 #######################################
@@ -306,7 +269,7 @@ local partition_device_parttype
 }
 
 #######################################
-# provides a list of partition devices with SD_GPT_ROOT* at its partition type
+# provides a list of partition devices able to keep a root file system
 # Arguments:
 #   $1 = image / loop device
 #   $2 = image / loop device with 'p' for loop devices
@@ -323,7 +286,7 @@ local partition_device_parttype
   for partition_device in ${IMAGE_DEVICE_P}?*
   do
     partition_device_parttype=$(get_partition_type $partition_device)
-    if echo "$partition_device_parttype" | grep -q '^SD_GPT_ROOT'; then
+    if test -n "$partition_device_parttype" ; then
       print_verbose_line "* $partition_device:$partition_device_parttype"
       echo "$partition_device"
     else
@@ -346,6 +309,7 @@ local root_mountpoint
 local root_devices=()
 local size
 local id
+local found_root_partitions=0
 
   root_mountpoint=$(findmnt "${CMD_MOUNTPOINT}" -o TARGET  -n)
   if [ -z "${root_mountpoint}" ];then
@@ -356,16 +320,20 @@ local id
       mdevice=''
       mbind=''
     else
-      if [ "$size" -gt "1" ]; then
-        print_error_line "There is more than one root partition at device"
-        for id in "${root_devices[@]}"; do
-          print_error_line "  $id"
-        done
-        print_error_line "Using ${root_devices[0]}"
-      fi
-      print_verbose_line "Mounting root partition ${root_devices[0]} at ${CMD_MOUNTPOINT}/"
-      mount "${root_devices[0]}" "${CMD_MOUNTPOINT}/"
-      check_return_code $? $LINENO
+      for id in "${root_devices[@]}"; do
+        if test "$found_root_partitions" -ge "1"; then
+          print_error_line "There is more than one root partition at device $id"
+        else
+          mount "$id" "${CMD_MOUNTPOINT}/"
+          check_return_code $? $LINENO
+          if [ -f "${CMD_MOUNTPOINT}/etc/fstab" ]; then
+            ((found_root_partitions=found_root_partitions+1))
+          else
+            umount "${CMD_MOUNTPOINT}/"
+            check_return_code $? $LINENO
+          fi
+        fi
+      done
     fi
     root_mountpoint=$(findmnt "${CMD_MOUNTPOINT}" -o TARGET  -n)
   fi
