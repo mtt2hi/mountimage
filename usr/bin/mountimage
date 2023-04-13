@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2023 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
 
-VERSION=2.01
+VERSION=2.1.0
 VERSIONDATE=2023
 
 SHORT=hp:m:vr:ulf
@@ -187,7 +187,8 @@ Automounting of / (root):
 The first valid mount can be setup by an option or be set automatically, if following conditions are met:
 
 - GPT partitioning is used
-- One has a partition type "SD_GPT_ROOT*" (the related UUID) set
+- One has a partition type "SD_GPT_ROOT*" or "SD_GPT_ESP" (the related UUID) set.
+- A file /etc/fstab exists at this partition
 - If more than one partition have been marked as ROOT partition, the first partition is used
 
 Some information about partition types can be found at:
@@ -241,6 +242,7 @@ $PROGNAME -r apertis -m /mnt/rootfs /dev/sdx
 
 $PROGNAME -f -m /mnt/rootfs system.img # only if a partition is marked as ROOT partition)
 
+$PROGNAME -p PARTLABEL=system:/ -f -m /mnt/rootfs system.img # set root partition before using -f option
 
 HeredocDelimiter
 
@@ -309,7 +311,7 @@ local root_mountpoint
 local root_devices=()
 local size
 local id
-local found_root_partitions=0
+local found_valid_root_partition
 
   root_mountpoint=$(findmnt "${CMD_MOUNTPOINT}" -o TARGET  -n)
   if [ -z "${root_mountpoint}" ];then
@@ -321,13 +323,13 @@ local found_root_partitions=0
       mbind=''
     else
       for id in "${root_devices[@]}"; do
-        if test "$found_root_partitions" -ge "1"; then
+        if test -n "$found_valid_root_partition"; then
           print_error_line "There is more than one root partition at device $id"
         else
           mount "$id" "${CMD_MOUNTPOINT}/"
           check_return_code $? $LINENO
           if [ -f "${CMD_MOUNTPOINT}/etc/fstab" ]; then
-            ((found_root_partitions=found_root_partitions+1))
+            found_valid_root_partition='y'
           else
             umount "${CMD_MOUNTPOINT}/"
             check_return_code $? $LINENO

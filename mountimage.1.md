@@ -35,12 +35,12 @@ Automounting of / (root):
 The first valid mount can be setup by an option or be set automatically, if following conditions are met:
 
 - GPT partitioning is used
-- One has a partition type "SD_GPT_ROOT*" (the related UUID) set
+- One has a partition type "SD_GPT_ROOT*" or "SD_GPT_ESP" (the related UUID) set.
+- A file /etc/fstab exists at this partition
 - If more than one partition have been marked as ROOT partition, the first partition is used
 
 Some information about partition types can be found at:
 https://uapi-group.org/specifications/specs/discoverable_partitions_specification/
-
 
 
 After mounting the system image it can be used for further activities like running devroots (e.g. **systemd-nspawn**).
@@ -117,15 +117,31 @@ Example of profile:
 
 mountimage -p PARTLABEL=system:/ -p PARTLABEL=general_storage:/home -p ... -m /mnt/rootfs /dev/sdx
 
+  - Setup partitions with --path option
+
 mountimage -p PARTLABEL=system:/ -f -m /mnt/rootfs /dev/sdx
+
+  - Setup root partition with --path option
+  - Setup sub partitions with content of /etc/fstab
 
 mountimage -u -p PARTLABEL=system:/ --fstab -m /mnt/rootfs system.img
 
+  - Umount all partitions at mount point
+  - Setup root partition with --path option
+  - Setup sub partitions with content of /etc/fstab
+
 mountimage -u /mnt/rootfs
+
+  - Umount all partitions at mount point
 
 mountimage -r apertis -m /mnt/rootfs /dev/sdx
 
-mountimage -f -m /mnt/rootfs system.img # only if a partition is marked as ROOT partition)
+  - Use profile **apertis** to setup partitions
+
+mountimage -f -m /mnt/rootfs system.img 
+
+  - Implicitly: Search root partition based on partition type
+  - Setup sub partitions with content of /etc/fstab
 
 # AUTHORS
 Written by Thomas Mittelstädt
