@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2023 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
 
-VERSION=2.1.0
+VERSION=2.1.1
 VERSIONDATE=2023
 
 SHORT=hp:m:vr:ulf
@@ -649,6 +649,9 @@ local mbind rootmnt
     mdevice=
   elif test "$idtype" = "PARTNR"; then
     mdevice="${devicep}${idvalue}"
+    if [ ! -b "$mdevice" ]; then
+      mdevice=
+    fi
   else
     print_error_line "Can't understand $\"$descr\"\n"
     exit 1
