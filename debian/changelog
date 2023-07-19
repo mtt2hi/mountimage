@@ -1,3 +1,9 @@
+mountimage (2.6.4) UNRELEASED; urgency=medium
+
+  * Some corrections
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Wed, 19 Jul 2023 12:07:26 +0000
+
 mountimage (2.6.3) apertis; urgency=medium
 
   * Now partnr is only used if partition exists

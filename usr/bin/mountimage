@@ -754,6 +754,7 @@ if [ -n "$CMD_PATH_DESCRIPTORS" ]; then
     #  partprobe has to be called
     partprobe ${device} &> /dev/null
     check_return_code $? $LINENO
+    sleep 1
   elif [ -f "$CMD_IMAGE_DEVICE" ]; then
     # if an image file is given
     # Check if the related loop device can be reused at incremental call of command
