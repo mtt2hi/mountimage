@@ -1,3 +1,10 @@
+mountimage (2.7.0) apertis; urgency=medium
+
+  * Now ramfs file system is used to mount rootless devices
+  * Some minor corrections
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Fri, 18 Aug 2023 14:02:54 +0000
+
 mountimage (2.6.4) apertis; urgency=medium
 
   * Some corrections
