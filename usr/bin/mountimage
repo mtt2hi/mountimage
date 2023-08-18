@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2023 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
 
-VERSION=2.1.1
+VERSION=2.2.0
 VERSIONDATE=2023
 
 SHORT=hp:m:vr:ulf
@@ -133,7 +133,7 @@ function print_verbose_line() {
 #   $* : Strings to log
 #######################################
 function print_error_line() {
-  echo "$(basename $0): $*" >&2
+  echo "${PROGNAME}: $*" >&2
 }
 
 
@@ -189,10 +189,12 @@ The first valid mount can be setup by an option or be set automatically, if foll
 - GPT partitioning is used
 - One has a partition type "SD_GPT_ROOT*" or "SD_GPT_ESP" (the related UUID) set.
 - A file /etc/fstab exists at this partition
-- If more than one partition have been marked as ROOT partition, the first partition is used
+- If more than one partition has been marked as ROOT partition, the first partition is used
 
 Some information about partition types can be found at:
 https://uapi-group.org/specifications/specs/discoverable_partitions_specification/
+
+If there is still no root partition mountable, a small ramfs file system is created to mount the sub directories
 
 Possible entries for MDESCR:
 
@@ -316,21 +318,20 @@ local found_valid_root_partition
     root_devices=( $(get_root_partitions ${IMAGE_DEVICE} ${IMAGE_DEVICE_P}) )
     size=${#root_devices[@]}
     if [ "$size" -eq "0" ]; then
-      echo "/ is not mounted for $IMAGE_DEVICE, can't handle sub mounts"
-      mdevice=''
-      mbind=''
-    else
-      for id in "${root_devices[@]}"; do
-        mount "$id" "${CMD_MOUNTPOINT}/"
-        check_return_code $? $LINENO
-        if [ -f "${CMD_MOUNTPOINT}/etc/fstab" ]; then
-          break
-        else
-          umount "${CMD_MOUNTPOINT}/"
-          check_return_code $? $LINENO
-        fi
-      done
+      print_verbose_line "/ is not mounted for $IMAGE_DEVICE, creating ramfs as stub"
+      mount -t ramfs -o size=1M ext4 "${CMD_MOUNTPOINT}"
+      check_return_code $? $LINENO
     fi
+    for id in "${root_devices[@]}"; do
+      mount "$id" "${CMD_MOUNTPOINT}/"
+      check_return_code $? $LINENO
+      if [ -f "${CMD_MOUNTPOINT}/etc/fstab" ]; then
+        break
+      else
+        umount "${CMD_MOUNTPOINT}/"
+        check_return_code $? $LINENO
+      fi
+    done
     root_mountpoint=$(findmnt "${CMD_MOUNTPOINT}" -o TARGET  -n)
   fi
   echo "$root_mountpoint"
@@ -428,8 +429,16 @@ local parsed
                 LOADED_PROFILES[$profile]='y'
                 profilepath=$(get_filename_from_profile_id y "$profile")
                 if [ -n "$profilepath" ]; then
-                  local xcmd
-                  xcmd=($(cat $profilepath))
+                  local xcmd=()
+                  local line
+                  while IFS= read -r line
+                  do
+                    line="$(echo $line|sed 's/#.*$//' )"
+                    if [ -n "$line" ]; then
+                      print_verbose_line "Parameter from profile:$line"
+                      xcmd+=( "$line" )
+                    fi
+                  done < "$profilepath"
                   parse_command_line "${xcmd[@]}"
                 else
                   print_error_line "Can't find $profile at ${PROFILEBASES[@]}"
@@ -450,7 +459,7 @@ local parsed
               shift
               ;;
           --version)
-              echo "$(basename $0) $VERSION ($VERSIONDATE)"
+              echo "$PROGNAME $VERSION ($VERSIONDATE)"
               shift
               exit 0
               ;;
@@ -659,7 +668,7 @@ local mbind rootmnt
   if test "$labelpath" != "/"; then
     rootmnt=$(check_and_try_to_mount_root_partition $device $devicep)
     if [ -z "${rootmnt}" ];then
-      echo "/ is not mounted for $device, can't handle sub mounts"
+      print_error_line "/ is not mounted for $device, can't handle sub mounts"
       mdevice=''
       mbind=''
     fi
