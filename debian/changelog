@@ -1,3 +1,9 @@
+mountimage (2.7.1) UNRELEASED; urgency=medium
+
+  * Loop device removed after umount
+
+ -- Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>  Tue, 29 Aug 2023 12:26:40 +0000
+
 mountimage (2.7.0) apertis; urgency=medium
 
   * Now ramfs file system is used to mount rootless devices

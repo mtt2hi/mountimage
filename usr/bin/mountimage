@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2023 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
 
-VERSION=2.2.0
+VERSION=2.2.1
 VERSIONDATE=2023
 
 SHORT=hp:m:vr:ulf
@@ -727,16 +727,20 @@ if test "$CMD_UMOUNT_OPTION_SET" = 'y'; then
   system_dev=$(findmnt "$CMD_MOUNTPOINT" -o SOURCE  -n)
   if test -n "${system_dev}"; then
   
+    loop_dev=
     # unmount all devices at mount point and sub directories
     for mountpoint in $(findmnt -R "${CMD_MOUNTPOINT}" -o TARGET  -n | tac | perl -ne 'print "$1\n" if /(\/.*)/') ;
     do
+      if [ -z "$loop_dev" ]; then
+        loop_dev=$(findmnt "${mountpoint}" -o SOURCE  -n |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')
+      fi
       print_verbose_line "Unmounting ${mountpoint}"
       umount "${mountpoint}"
       check_return_code $? $LINENO
       sync
     done
     device=$(echo ${system_dev} |perl -ne 'print "$1\n" if /(\/dev\/\w+?)p?\d+\Z/')
-    loop_dev=$(echo ${system_dev} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')
+    print_verbose_line "Loop_dev:$loop_dev"
   else
     loop_dev=$(echo ${device} |perl -ne 'print "$1\n" if /(\/dev\/loop\d+).*\Z/')
   fi
