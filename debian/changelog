@@ -1,4 +1,4 @@
-mountimage (2.7.1) UNRELEASED; urgency=medium
+mountimage (2.7.1) apertis; urgency=medium
 
   * Loop device removed after umount
 
