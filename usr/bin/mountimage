@@ -1,10 +1,10 @@
 #!/bin/bash
 # SPDX-License-Identifier: SPDX-License-Identifier: MPL-2.0
 #
-# Copyright (c) 2023 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
+# Copyright (c) 2023,2024 Thomas Mittelstaedt <thomas.mittelstaedt@de.bosch.com>
 
-VERSION=2.2.1
-VERSIONDATE=2023
+VERSION=2.3.0
+VERSIONDATE=2024
 
 SHORT=hp:m:vr:ulf
 LONG=help,path:,mountpoint:,verbose,profile:,umount,version,last,fstab
@@ -174,7 +174,8 @@ Mount options:
     -m, --mountpoint=DIR    Directory as mount point for / (root)
 
 Common options:
-    -r, --profile=PROFILE   Base name of profile, searched at PROFILEPATH.
+    -r, --profile=PROFILE   Base name of profile, searched at PROFILEPATH
+                            of path to profile
                             Content is embedded in order of command options,
     -v, --verbose           Display additional infos to STDERR
     -l, --last              Print parameters of last mount options after processing
@@ -427,7 +428,11 @@ local parsed
               else
                 print_verbose_line "Reading profile $profile"
                 LOADED_PROFILES[$profile]='y'
-                profilepath=$(get_filename_from_profile_id y "$profile")
+                if [ -f "$profile" ]; then
+                  profilepath="$profile"
+                else
+                  profilepath=$(get_filename_from_profile_id y "$profile")
+                fi
                 if [ -n "$profilepath" ]; then
                   local xcmd=()
                   local line
